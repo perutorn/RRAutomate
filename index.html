@@ -3,35 +3,78 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Skaner R&R - Procesor Obrazu</title>
+    <title>Skaner R&R z Celownikiem</title>
     <script src="https://unpkg.com/@zxing/library@latest"></script>
     <style>
-        body { font-family: sans-serif; text-align: center; padding: 20px; background: #222; color: #eee; }
-        .container { background: #333; padding: 20px; border-radius: 10px; border: 1px solid #444; max-width: 400px; margin: auto; }
-        #btn-scan { background: #00a2ed; color: white; border: none; padding: 18px; font-size: 1.1rem; border-radius: 8px; width: 100%; font-weight: bold; cursor: pointer; }
-        #status { margin: 15px 0; font-size: 0.9rem; color: #bbb; }
-        #result { margin-top: 20px; padding: 15px; background: #1e4620; border-radius: 5px; display: none; border: 1px solid #28a745; }
+        body { font-family: sans-serif; text-align: center; background: #1a1a1a; color: white; margin: 0; padding: 20px; }
+        .container { max-width: 400px; margin: auto; }
+        
+        /* Styl przycisku */
+        #btn-scan { 
+            background: #0078d4; color: white; border: none; padding: 20px; 
+            font-size: 1.2rem; border-radius: 10px; width: 100%; cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        /* Kontener na podgląd z celownikiem */
+        .camera-box {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            margin: 20px auto;
+            border: 2px solid #444;
+            background: #000;
+            overflow: hidden;
+            display: none; /* Pokaże się po zrobieniu zdjęcia */
+        }
+
+        #debug-preview { width: 100%; height: 100%; object-fit: cover; }
+
+        /* RAMKA CELOWNIKA */
+        .reticle {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 150px; height: 150px;
+            border: 2px solid #00ff00;
+            box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.5); /* Zaciemnienie tła poza ramką */
+            pointer-events: none;
+        }
+        .reticle::before {
+            content: "CELUJ TUTAJ";
+            position: absolute;
+            top: -25px; left: 0; width: 100%;
+            color: #00ff00; font-size: 10px; font-weight: bold;
+        }
+
+        #status { margin: 15px 0; color: #aaa; font-size: 0.9rem; }
+        #result { 
+            background: #1e4620; padding: 15px; border-radius: 8px; 
+            border: 1px solid #28a745; margin-top: 20px; display: none; 
+        }
         canvas { display: none; }
-        #debug-preview { max-width: 100%; margin-top: 10px; border: 1px solid #555; display: none; filter: grayscale(100%) contrast(150%); }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>Skaner Maszyn v4</h2>
-    <div id="status">System gotowy</div>
-    
+    <h2>Skaner Maszyn v5</h2>
+    <div id="status">Gotowy do pomiaru</div>
+
+    <button id="btn-scan">ZRÓB FOTO KODU</button>
     <input type="file" accept="image/*" capture="environment" id="camera-input" style="display: none;">
-    <button id="btn-scan">FOTO I ANALIZA</button>
-    
-    <div id="result">
-        <small>ZDEKODOWANO:</small><br>
-        <strong id="qr-data" style="font-size: 1.4rem;"></strong>
+
+    <div class="camera-box" id="preview-container">
+        <img id="debug-preview">
+        <div class="reticle"></div>
     </div>
 
-    <p style="font-size: 0.7rem; color: #777; margin-top: 20px;">Podgląd przetworzony (High Contrast):</p>
+    <div id="result">
+        <small>ZDEKODOWANO:</small><br>
+        <strong id="qr-data" style="font-size: 1.5rem;"></strong>
+    </div>
+
     <canvas id="proc-canvas"></canvas>
-    <img id="debug-preview">
 </div>
 
 <script>
@@ -40,40 +83,48 @@
     const canvas = document.getElementById('proc-canvas');
     const ctx = canvas.getContext('2d');
 
-    document.getElementById('btn-scan').addEventListener('click', () => input.click());
+    document.getElementById('btn-scan').addEventListener('click', () => {
+        input.click();
+    });
 
-    input.addEventListener('change', async (e) => {
+    input.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (!file) return;
 
-        document.getElementById('status').innerText = "Przetwarzanie wstępne...";
+        document.getElementById('status').innerText = "Analiza celownika...";
         const img = new Image();
         img.src = URL.createObjectURL(file);
 
         img.onload = async () => {
-            // OPTYMALIZACJA: Skalujemy do 600px - idealne dla QR
-            const scale = 600 / Math.max(img.width, img.height);
-            canvas.width = img.width * scale;
-            canvas.height = img.height * scale;
+            // PARAMETRY KADROWANIA (WYCINANIA)
+            // Wycinamy środek zdjęcia (kwadrat 50% mniejszego boku)
+            const minDim = Math.min(img.width, img.height);
+            const cropSize = minDim * 0.5; 
+            const sourceX = (img.width - cropSize) / 2;
+            const sourceY = (img.height - cropSize) / 2;
 
-            // Nakładamy filtry na Canvas (jak w Photoshopie)
-            ctx.filter = "grayscale(100%) contrast(200%) brightness(120%)";
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            // Przygotowujemy "czysty" obraz 600x600 do analizy
+            canvas.width = 600;
+            canvas.height = 600;
 
-            const processedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
-            document.getElementById('debug-preview').src = processedDataUrl;
-            document.getElementById('debug-preview').style.display = "block";
+            // Filtracja dla maksymalnego kontrastu w ramce
+            ctx.filter = "grayscale(100%) contrast(300%) brightness(110%)";
+            ctx.drawImage(img, sourceX, sourceY, cropSize, cropSize, 0, 0, 600, 600);
 
-            document.getElementById('status').innerText = "Dekodowanie ZXing...";
+            const processedDataUrl = canvas.toDataURL('image/jpeg', 0.9);
             
+            // Pokazujemy co "widzi" skaner w ramce
+            document.getElementById('preview-container').style.display = "block";
+            document.getElementById('debug-preview').src = processedDataUrl;
+
             try {
                 const result = await codeReader.decodeFromImageUrl(processedDataUrl);
                 document.getElementById('qr-data').innerText = result.text;
                 document.getElementById('result').style.display = 'block';
-                document.getElementById('status').innerText = "SUKCES!";
+                document.getElementById('status').innerText = "ODCZYTANO!";
             } catch (err) {
-                document.getElementById('status').innerText = "BŁĄD: Nieczytelne. Spróbuj z innej odległości.";
-                console.error(err);
+                document.getElementById('status').innerText = "BŁĄD: Wyceluj dokładniej w kod.";
+                document.getElementById('result').style.display = 'none';
             }
         };
     });
