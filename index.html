@@ -3,157 +3,223 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skaner R&R Live</title>
+    <title>R&R Calc v1.0</title>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <style>
-        body { font-family: sans-serif; margin: 0; background: #000; color: white; overflow: hidden; }
+        :root { --bg: #121212; --card: #1e1e1e; --accent: #0078d4; --success: #28a745; --danger: #dc3545; --text: #eee; }
+        body { font-family: sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; }
+        .hidden { display: none !important; }
         
-        /* Kontener wideo na cały ekran */
-        #scanner-container {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
+        /* Ekran startowy i listy */
+        .btn { background: var(--accent); color: white; border: none; padding: 15px; border-radius: 8px; width: 100%; font-size: 1.1rem; cursor: pointer; margin-bottom: 10px; }
+        .btn-success { background: var(--success); }
+        .card { background: var(--card); padding: 15px; border-radius: 10px; margin-bottom: 10px; border: 1px solid #333; }
+        
+        /* Skaner */
+        #scanner-view { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 100; }
+        video { width: 100%; height: 100%; object-fit: cover; }
+        .reticle { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 200px; height: 200px; border: 2px solid #00ff00; }
 
-        video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover; /* Wypełnia ekran */
-        }
-
-        /* CELOWNIK NA ŻYWO */
-        .reticle {
-            position: absolute;
-            width: 200px;
-            height: 200px;
-            border: 2px solid #00ff00;
-            box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.4); /* Przyciemnienie boków */
-            z-index: 10;
-            pointer-events: none;
-        }
-
-        .reticle::after {
-            content: "USTAW KOD W RAMCE";
-            position: absolute;
-            bottom: -30px;
-            width: 100%;
-            text-align: center;
-            color: #00ff00;
-            font-size: 12px;
-            letter-spacing: 1px;
-        }
-
-        #status {
-            position: absolute;
-            top: 20px;
-            width: 100%;
-            text-align: center;
-            z-index: 20;
-            background: rgba(0,0,0,0.5);
-            padding: 10px 0;
-        }
-
-        #result-overlay {
-            position: absolute;
-            bottom: 50px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #28a745;
-            padding: 20px;
-            border-radius: 10px;
-            display: none;
-            z-index: 30;
-            text-align: center;
-        }
-
-        canvas { display: none; } /* Płótno pomocnicze do analizy */
+        /* Panel pomiarowy */
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .stat-box { background: #2a2a2a; padding: 10px; border-radius: 5px; text-align: center; }
+        .stat-val { font-size: 1.4rem; font-weight: bold; display: block; }
+        .stat-label { font-size: 0.7rem; color: #888; }
+        
+        #input-field { width: 100%; padding: 20px; font-size: 2rem; background: #000; color: #00ff00; border: 2px solid var(--accent); border-radius: 10px; text-align: center; box-sizing: border-box; }
+        .history { height: 100px; overflow-y: auto; background: #000; padding: 5px; font-family: monospace; font-size: 0.9rem; margin-top: 10px; border-radius: 5px; }
     </style>
 </head>
 <body>
 
-    <div id="status">Inicjalizacja skanera...</div>
+<div id="view-start">
+    <h2 style="text-align:center">R&R Analizer</h2>
+    <button class="btn" onclick="startScanner()">SKANUJ KOD MASZYNY</button>
+    <div class="card">
+        <label>Lub wybierz ręcznie:</label>
+        <select id="manual-select" class="btn" style="background:#333; margin-top:10px" onchange="selectMachine(this.value)">
+            <option value="">-- Wybierz maszynę --</option>
+        </select>
+    </div>
+</div>
 
-    <div id="scanner-container">
-        <video id="video" autoplay playsinline></video>
-        <div class="reticle"></div>
-        
-        <div id="result-overlay">
-            <small>ZIDENTYFIKOWANO MASZYNĘ:</small><br>
-            <strong id="qr-data" style="font-size: 1.4rem;"></strong><br>
-            <button onclick="location.reload()" style="margin-top:10px; padding:10px;">SKANUJ PONOWNIE</button>
-        </div>
+<div id="view-station" class="hidden">
+    <button onclick="showStart()" style="color:var(--accent); background:none; border:none; padding:10px">← Powrót</button>
+    <h3 id="selected-machine-name">Maszyna</h3>
+    <div id="stations-list"></div>
+</div>
+
+<div id="view-measure" class="hidden">
+    <div style="display:flex; justify-content: space-between; align-items: center;">
+        <h3 id="active-station-name">Stacja</h3>
+        <span id="counter" style="background:var(--accent); padding:5px 10px; border-radius:15px">0 / 50</span>
+    </div>
+    
+    <div class="stats-grid">
+        <div class="stat-box" id="box-cg"><span class="stat-label">Cg (4σ)</span><span class="stat-val" id="val-cg">-</span></div>
+        <div class="stat-box" id="box-cgk"><span class="stat-label">Cgk</span><span class="stat-val" id="val-cgk">-</span></div>
+        <div class="stat-box"><span class="stat-label">Średnia</span><span class="stat-val" id="val-avg" style="font-size:1rem">-</span></div>
+        <div class="stat-box"><span class="stat-label">Odchylenie (s)</span><span class="stat-val" id="val-std" style="font-size:1rem">-</span></div>
     </div>
 
-    <canvas id="canvas"></canvas>
+    <input type="number" step="0.001" id="input-field" placeholder="0.000" inputmode="decimal">
+    
+    <div class="history" id="history-log"></div>
+    <button class="btn btn-success" style="margin-top:15px" onclick="generateReport()">ZAKOŃCZ I RAPORT</button>
+    <button class="btn" style="background:#444" onclick="undoLast()">COFNIJ OSTATNI</button>
+</div>
+
+<div id="scanner-view" class="hidden">
+    <div id="status" style="position:absolute; top:10px; width:100%; text-align:center; z-index:110">Celuj w kod QR</div>
+    <video id="video" autoplay playsinline></video>
+    <div class="reticle"></div>
+    <button onclick="stopScanner()" style="position:absolute; bottom:20px; left:50%; transform:translateX(-50%); padding:15px; z-index:110">Anuluj</button>
+</div>
+
+<canvas id="canvas" style="display:none"></canvas>
 
 <script>
-    const video = document.getElementById('video');
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    const status = document.getElementById('status');
-    const resultOverlay = document.getElementById('result-overlay');
-    const qrDataSpan = document.getElementById('qr-data');
-    const reticle = document.querySelector('.reticle');
+// --- KONFIGURACJA ---
+const katalogMaszyn = {
+    "M001": {
+        nazwa: "Prasa Hydrauliczna P1",
+        stacje: [
+            { id: "s1", nazwa: "Pin A height", tol: 0.02, master: 15.000 },
+            { id: "s2", nazwa: "Pin B height", tol: 0.02, master: 15.000 },
+            { id: "s3", nazwa: "Swash plate thickness", tol: 0.05, master: 20.000 }
+        ]
+    }
+};
 
-    let isScanning = true; // Flaga kontrolująca stan skanera
+let currentMachine = null;
+let currentStation = null;
+let measurements = [];
 
-    navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: "environment" } 
-    })
-    .then(stream => {
-        video.srcObject = stream;
-        status.innerText = "SZUKANIE KODU QR...";
-        requestAnimationFrame(tick);
-    })
-    .catch(err => {
-        status.innerText = "BŁĄD KAMERY: " + err.name;
+// --- LOGIKA WIDOKÓW ---
+function showStart() { 
+    document.querySelectorAll('body > div').forEach(d => d.classList.add('hidden'));
+    document.getElementById('view-start').classList.remove('hidden');
+}
+
+function selectMachine(id) {
+    if(!id) return;
+    currentMachine = katalogMaszyn[id];
+    document.getElementById('selected-machine-name').innerText = currentMachine.nazwa;
+    const list = document.getElementById('stations-list');
+    list.innerHTML = '';
+    currentMachine.stacje.forEach(s => {
+        const b = document.createElement('button');
+        b.className = 'btn';
+        b.style.background = '#444';
+        b.innerText = s.nazwa;
+        b.onclick = () => startMeasure(s);
+        list.appendChild(b);
     });
+    document.getElementById('view-start').classList.add('hidden');
+    document.getElementById('view-station').classList.remove('hidden');
+}
 
-    function tick() {
-        if (!isScanning) return; // Jeśli nie skanujemy, zatrzymaj pętlę
+function startMeasure(station) {
+    currentStation = station;
+    measurements = [];
+    document.getElementById('active-station-name').innerText = station.nazwa;
+    document.getElementById('view-station').classList.add('hidden');
+    document.getElementById('view-measure').classList.remove('hidden');
+    updateStats();
+    document.getElementById('input-field').focus();
+}
 
-        if (video.readyState === video.HAVE_ENOUGH_DATA) {
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            
-            const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                inversionAttempts: "dontInvert",
-            });
-
-            if (code) {
-                isScanning = false; // Natychmiastowa blokada kolejnego skanu
-                handleSuccess(code.data);
-                return;
-            }
+// --- OBLICZENIA ---
+document.getElementById('input-field').addEventListener('keypress', (e) => {
+    if(e.key === 'Enter') {
+        const val = parseFloat(e.target.value);
+        if(!isNaN(val)) {
+            measurements.push(val);
+            e.target.value = '';
+            updateStats();
+            if (navigator.vibrate) navigator.vibrate(50);
         }
-        requestAnimationFrame(tick);
     }
+});
 
-    function handleSuccess(data) {
-        // 1. Efekt wizualny - ramka na jaskrawą zieleń
-        reticle.style.borderColor = "#00ff00";
-        reticle.style.boxShadow = "0 0 20px #00ff00";
-        
-        // 2. Informacja dla użytkownika (Cooldown na 800ms przed pokazaniem wyniku)
-        status.innerText = "KOD WYKRYTY!";
-        
-        if (navigator.vibrate) navigator.vibrate([100, 50, 100]); // Podwójny "klik" wibracji
+function undoLast() {
+    measurements.pop();
+    updateStats();
+}
 
-        // 3. Krótkie opóźnienie (Cool down), żebyś widział co się dzieje
-        setTimeout(() => {
-            qrDataSpan.innerText = data;
-            resultOverlay.style.display = "block";
-            status.innerText = "ZAKOŃCZONO SKANOWANIE";
-            
-            // Opcjonalnie: zatrzymaj kamerę
-            // video.srcObject.getTracks().forEach(track => track.stop());
-        }, 800); 
+function updateStats() {
+    const n = measurements.length;
+    document.getElementById('counter').innerText = `${n} / 50`;
+    
+    const log = document.getElementById('history-log');
+    log.innerHTML = measurements.slice().reverse().map((v, i) => `[${n-i}] ${v.toFixed(4)}`).join('<br>');
+
+    if(n < 2) return;
+
+    const avg = measurements.reduce((a,b) => a+b, 0) / n;
+    const sqDiffs = measurements.map(v => Math.pow(v - avg, 2));
+    const std = Math.sqrt(sqDiffs.reduce((a,b) => a+b, 0) / (n - 1));
+    
+    // FORMULA: Cg = (0.2 * T) / (4 * s)
+    const cg = (0.2 * currentStation.tol) / (4 * std);
+    // FORMULA: Cgk = (0.1 * T - |avg - master|) / (3 * s)
+    const cgk = (0.1 * currentStation.tol - Math.abs(avg - currentStation.master)) / (3 * std);
+
+    document.getElementById('val-avg').innerText = avg.toFixed(4);
+    document.getElementById('val-std').innerText = std.toFixed(6);
+    document.getElementById('val-cg').innerText = std === 0 ? "∞" : cg.toFixed(2);
+    document.getElementById('val-cgk').innerText = std === 0 ? "∞" : cgk.toFixed(2);
+
+    // Kolorowanie
+    document.getElementById('box-cgk').style.background = cgk >= 1.33 ? "#1e4620" : "#461e1e";
+}
+
+// --- SKANER (jsQR) ---
+let videoStream = null;
+function startScanner() {
+    document.getElementById('scanner-view').classList.remove('hidden');
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then(s => {
+        videoStream = s;
+        document.getElementById('video').srcObject = s;
+        requestAnimationFrame(scanTick);
+    });
+}
+
+function stopScanner() {
+    if(videoStream) videoStream.getTracks().forEach(t => t.stop());
+    document.getElementById('scanner-view').classList.add('hidden');
+}
+
+function scanTick() {
+    const v = document.getElementById('video');
+    if(v.readyState === v.HAVE_ENOUGH_DATA) {
+        const canvas = document.getElementById('canvas');
+        canvas.width = v.videoWidth; canvas.height = v.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+        const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(img.data, img.width, img.height);
+        if(code) {
+            stopScanner();
+            if(katalogMaszyn[code.data]) selectMachine(code.data);
+            else alert("Nieznana maszyna: " + code.data);
+            return;
+        }
     }
+    if(!document.getElementById('scanner-view').classList.contains('hidden')) requestAnimationFrame(scanTick);
+}
+
+// Inicjalizacja listy ręcznej
+const sel = document.getElementById('manual-select');
+for(let id in katalogMaszyn) {
+    const opt = document.createElement('option');
+    opt.value = id; opt.innerText = katalogMaszyn[id].nazwa;
+    sel.appendChild(opt);
+}
+
+function generateReport() {
+    alert("Funkcja generowania raportu HTML gotowa do podpięcia pod e-mail!");
+}
 </script>
 </body>
 </html>
