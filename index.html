@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Skanera R&R</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 20px; background: #f4f4f4; }
+        .container { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        h1 { color: #333; font-size: 1.2rem; }
+        #btn-scan {
+            background: #0078d4; color: white; border: none; padding: 15px 25px;
+            font-size: 1rem; border-radius: 5px; cursor: pointer; width: 100%;
+        }
+        #preview { margin-top: 20px; max-width: 100%; border-radius: 5px; display: none; }
+        .info { margin-top: 15px; color: #666; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Tester Aparatu (PWA)</h1>
+    <p class="info">Kliknij poniżej, aby zrobić zdjęcie kodu QR lub maszyny</p>
+    
+    <input type="file" accept="image/*" capture="environment" id="camera-input" style="display: none;">
+    
+    <button id="btn-scan">Otwórz Aparat Systemowy</button>
+
+    <img id="preview" src="" alt="Podgląd zdjęcia">
+</div>
+
+<script>
+    const btn = document.getElementById('btn-scan');
+    const input = document.getElementById('camera-input');
+    const preview = document.getElementById('preview');
+
+    // Kliknięcie w ładny przycisk wywołuje ukryty input aparatu
+    btn.addEventListener('click', () => {
+        input.click();
+    });
+
+    // Gdy zrobisz zdjęcie, wyświetl je na ekranie
+    input.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                preview.src = event.target.result;
+                preview.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+</script>
+
+</body>
+</html>
