@@ -3,131 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Skaner R&R z Celownikiem</title>
-    <script src="https://unpkg.com/@zxing/library@latest"></script>
+    <title>Live Video Test</title>
     <style>
-        body { font-family: sans-serif; text-align: center; background: #1a1a1a; color: white; margin: 0; padding: 20px; }
-        .container { max-width: 400px; margin: auto; }
-        
-        /* Styl przycisku */
-        #btn-scan { 
-            background: #0078d4; color: white; border: none; padding: 20px; 
-            font-size: 1.2rem; border-radius: 10px; width: 100%; cursor: pointer;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-        }
-
-        /* Kontener na podgląd z celownikiem */
-        .camera-box {
-            position: relative;
-            width: 300px;
-            height: 300px;
-            margin: 20px auto;
-            border: 2px solid #444;
-            background: #000;
-            overflow: hidden;
-            display: none; /* Pokaże się po zrobieniu zdjęcia */
-        }
-
-        #debug-preview { width: 100%; height: 100%; object-fit: cover; }
-
-        /* RAMKA CELOWNIKA */
+        body { background: #000; color: white; text-align: center; }
+        video { width: 100%; max-width: 400px; border: 2px solid #555; }
         .reticle {
-            position: absolute;
-            top: 50%; left: 50%;
+            position: absolute; top: 50%; left: 50%;
             transform: translate(-50%, -50%);
             width: 150px; height: 150px;
             border: 2px solid #00ff00;
-            box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.5); /* Zaciemnienie tła poza ramką */
-            pointer-events: none;
         }
-        .reticle::before {
-            content: "CELUJ TUTAJ";
-            position: absolute;
-            top: -25px; left: 0; width: 100%;
-            color: #00ff00; font-size: 10px; font-weight: bold;
-        }
-
-        #status { margin: 15px 0; color: #aaa; font-size: 0.9rem; }
-        #result { 
-            background: #1e4620; padding: 15px; border-radius: 8px; 
-            border: 1px solid #28a745; margin-top: 20px; display: none; 
-        }
-        canvas { display: none; }
+        #status { padding: 20px; font-family: sans-serif; }
     </style>
 </head>
 <body>
-
-<div class="container">
-    <h2>Skaner Maszyn v5</h2>
-    <div id="status">Gotowy do pomiaru</div>
-
-    <button id="btn-scan">ZRÓB FOTO KODU</button>
-    <input type="file" accept="image/*" capture="environment" id="camera-input" style="display: none;">
-
-    <div class="camera-box" id="preview-container">
-        <img id="debug-preview">
+    <div id="status">Inicjalizacja kamery...</div>
+    <div style="position: relative; display: inline-block;">
+        <video id="video" autoplay playsinline></video>
         <div class="reticle"></div>
     </div>
 
-    <div id="result">
-        <small>ZDEKODOWANO:</small><br>
-        <strong id="qr-data" style="font-size: 1.5rem;"></strong>
-    </div>
+    <script>
+        const video = document.getElementById('video');
+        const status = document.getElementById('status');
 
-    <canvas id="proc-canvas"></canvas>
-</div>
-
-<script>
-    const codeReader = new ZXing.BrowserQRCodeReader();
-    const input = document.getElementById('camera-input');
-    const canvas = document.getElementById('proc-canvas');
-    const ctx = canvas.getContext('2d');
-
-    document.getElementById('btn-scan').addEventListener('click', () => {
-        input.click();
-    });
-
-    input.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        document.getElementById('status').innerText = "Analiza celownika...";
-        const img = new Image();
-        img.src = URL.createObjectURL(file);
-
-        img.onload = async () => {
-            // PARAMETRY KADROWANIA (WYCINANIA)
-            // Wycinamy środek zdjęcia (kwadrat 50% mniejszego boku)
-            const minDim = Math.min(img.width, img.height);
-            const cropSize = minDim * 0.5; 
-            const sourceX = (img.width - cropSize) / 2;
-            const sourceY = (img.height - cropSize) / 2;
-
-            // Przygotowujemy "czysty" obraz 600x600 do analizy
-            canvas.width = 600;
-            canvas.height = 600;
-
-            // Filtracja dla maksymalnego kontrastu w ramce
-            ctx.filter = "grayscale(100%) contrast(300%) brightness(110%)";
-            ctx.drawImage(img, sourceX, sourceY, cropSize, cropSize, 0, 0, 600, 600);
-
-            const processedDataUrl = canvas.toDataURL('image/jpeg', 0.9);
-            
-            // Pokazujemy co "widzi" skaner w ramce
-            document.getElementById('preview-container').style.display = "block";
-            document.getElementById('debug-preview').src = processedDataUrl;
-
-            try {
-                const result = await codeReader.decodeFromImageUrl(processedDataUrl);
-                document.getElementById('qr-data').innerText = result.text;
-                document.getElementById('result').style.display = 'block';
-                document.getElementById('status').innerText = "ODCZYTANO!";
-            } catch (err) {
-                document.getElementById('status').innerText = "BŁĄD: Wyceluj dokładniej w kod.";
-                document.getElementById('result').style.display = 'none';
-            }
-        };
-    });
-</script>
+        navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: "environment" } 
+        })
+        .then(stream => {
+            video.srcObject = stream;
+            status.innerText = "STREAM DZIAŁA - MOŻEMY BUDOWAĆ!";
+        })
+        .catch(err => {
+            status.innerText = "BŁĄD: Firma/System blokuje wideo na żywo: " + err.name;
+        });
+    </script>
 </body>
 </html>
