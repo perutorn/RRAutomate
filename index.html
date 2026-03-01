@@ -2,41 +2,152 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Video Test</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Skaner R&R Live</title>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <style>
-        body { background: #000; color: white; text-align: center; }
-        video { width: 100%; max-width: 400px; border: 2px solid #555; }
-        .reticle {
-            position: absolute; top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            width: 150px; height: 150px;
-            border: 2px solid #00ff00;
+        body { font-family: sans-serif; margin: 0; background: #000; color: white; overflow: hidden; }
+        
+        /* Kontener wideo na cały ekran */
+        #scanner-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
-        #status { padding: 20px; font-family: sans-serif; }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* Wypełnia ekran */
+        }
+
+        /* CELOWNIK NA ŻYWO */
+        .reticle {
+            position: absolute;
+            width: 200px;
+            height: 200px;
+            border: 2px solid #00ff00;
+            box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.4); /* Przyciemnienie boków */
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .reticle::after {
+            content: "USTAW KOD W RAMCE";
+            position: absolute;
+            bottom: -30px;
+            width: 100%;
+            text-align: center;
+            color: #00ff00;
+            font-size: 12px;
+            letter-spacing: 1px;
+        }
+
+        #status {
+            position: absolute;
+            top: 20px;
+            width: 100%;
+            text-align: center;
+            z-index: 20;
+            background: rgba(0,0,0,0.5);
+            padding: 10px 0;
+        }
+
+        #result-overlay {
+            position: absolute;
+            bottom: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #28a745;
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+            z-index: 30;
+            text-align: center;
+        }
+
+        canvas { display: none; } /* Płótno pomocnicze do analizy */
     </style>
 </head>
 <body>
-    <div id="status">Inicjalizacja kamery...</div>
-    <div style="position: relative; display: inline-block;">
+
+    <div id="status">Inicjalizacja skanera...</div>
+
+    <div id="scanner-container">
         <video id="video" autoplay playsinline></video>
         <div class="reticle"></div>
+        
+        <div id="result-overlay">
+            <small>ZIDENTYFIKOWANO MASZYNĘ:</small><br>
+            <strong id="qr-data" style="font-size: 1.4rem;"></strong><br>
+            <button onclick="location.reload()" style="margin-top:10px; padding:10px;">SKANUJ PONOWNIE</button>
+        </div>
     </div>
 
-    <script>
-        const video = document.getElementById('video');
-        const status = document.getElementById('status');
+    <canvas id="canvas"></canvas>
 
-        navigator.mediaDevices.getUserMedia({ 
-            video: { facingMode: "environment" } 
-        })
-        .then(stream => {
-            video.srcObject = stream;
-            status.innerText = "STREAM DZIAŁA - MOŻEMY BUDOWAĆ!";
-        })
-        .catch(err => {
-            status.innerText = "BŁĄD: Firma/System blokuje wideo na żywo: " + err.name;
-        });
-    </script>
+<script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const status = document.getElementById('status');
+    const resultOverlay = document.getElementById('result-overlay');
+    const qrDataSpan = document.getElementById('qr-data');
+
+    // 1. Uruchomienie kamery na żywo
+    navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: "environment" } 
+    })
+    .then(stream => {
+        video.srcObject = stream;
+        status.innerText = "SZUKANIE KODU QR...";
+        requestAnimationFrame(tick); // Rozpocznij pętlę skanowania
+    })
+    .catch(err => {
+        status.innerText = "BŁĄD KAMERY: " + err.name;
+    });
+
+    // 2. Główna pętla skanowania
+    function tick() {
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+            // Dopasuj płótno do wymiarów wideo
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            
+            // "Zrób zdjęcie" klatki wideo na niewidoczne płótno
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            
+            // Użyj lekkiej biblioteki jsQR do analizy klatki
+            const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                inversionAttempts: "dontInvert",
+            });
+
+            if (code) {
+                // JEŚLI ZNALEZIONO KOD:
+                drawResult(code.data);
+                return; // Zatrzymaj pętlę
+            }
+        }
+        // Kontynuuj pętlę jeśli nie znaleziono kodu
+        requestAnimationFrame(tick);
+    }
+
+    function drawResult(data) {
+        status.innerText = "SUKCES!";
+        qrDataSpan.innerText = data;
+        resultOverlay.style.display = "block";
+        
+        // Możesz tu dodać wibrację telefonu
+        if (navigator.vibrate) navigator.vibrate(200);
+
+        // Zatrzymujemy wideo, by oszczędzać baterię
+        video.srcObject.getTracks().forEach(track => track.stop());
+    }
+</script>
 </body>
 </html>
