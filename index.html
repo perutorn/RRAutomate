@@ -96,57 +96,63 @@
     const status = document.getElementById('status');
     const resultOverlay = document.getElementById('result-overlay');
     const qrDataSpan = document.getElementById('qr-data');
+    const reticle = document.querySelector('.reticle');
 
-    // 1. Uruchomienie kamery na żywo
+    let isScanning = true; // Flaga kontrolująca stan skanera
+
     navigator.mediaDevices.getUserMedia({ 
         video: { facingMode: "environment" } 
     })
     .then(stream => {
         video.srcObject = stream;
         status.innerText = "SZUKANIE KODU QR...";
-        requestAnimationFrame(tick); // Rozpocznij pętlę skanowania
+        requestAnimationFrame(tick);
     })
     .catch(err => {
         status.innerText = "BŁĄD KAMERY: " + err.name;
     });
 
-    // 2. Główna pętla skanowania
     function tick() {
+        if (!isScanning) return; // Jeśli nie skanujemy, zatrzymaj pętlę
+
         if (video.readyState === video.HAVE_ENOUGH_DATA) {
-            // Dopasuj płótno do wymiarów wideo
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
-            
-            // "Zrób zdjęcie" klatki wideo na niewidoczne płótno
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             
-            // Użyj lekkiej biblioteki jsQR do analizy klatki
             const code = jsQR(imageData.data, imageData.width, imageData.height, {
                 inversionAttempts: "dontInvert",
             });
 
             if (code) {
-                // JEŚLI ZNALEZIONO KOD:
-                drawResult(code.data);
-                return; // Zatrzymaj pętlę
+                isScanning = false; // Natychmiastowa blokada kolejnego skanu
+                handleSuccess(code.data);
+                return;
             }
         }
-        // Kontynuuj pętlę jeśli nie znaleziono kodu
         requestAnimationFrame(tick);
     }
 
-    function drawResult(data) {
-        status.innerText = "SUKCES!";
-        qrDataSpan.innerText = data;
-        resultOverlay.style.display = "block";
+    function handleSuccess(data) {
+        // 1. Efekt wizualny - ramka na jaskrawą zieleń
+        reticle.style.borderColor = "#00ff00";
+        reticle.style.boxShadow = "0 0 20px #00ff00";
         
-        // Możesz tu dodać wibrację telefonu
-        if (navigator.vibrate) navigator.vibrate(200);
+        // 2. Informacja dla użytkownika (Cooldown na 800ms przed pokazaniem wyniku)
+        status.innerText = "KOD WYKRYTY!";
+        
+        if (navigator.vibrate) navigator.vibrate([100, 50, 100]); // Podwójny "klik" wibracji
 
-        // Zatrzymujemy wideo, by oszczędzać baterię
-        video.srcObject.getTracks().forEach(track => track.stop());
+        // 3. Krótkie opóźnienie (Cool down), żebyś widział co się dzieje
+        setTimeout(() => {
+            qrDataSpan.innerText = data;
+            resultOverlay.style.display = "block";
+            status.innerText = "ZAKOŃCZONO SKANOWANIE";
+            
+            // Opcjonalnie: zatrzymaj kamerę
+            // video.srcObject.getTracks().forEach(track => track.stop());
+        }, 800); 
     }
 </script>
 </body>
