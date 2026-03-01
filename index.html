@@ -3,255 +3,80 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Skaner QR v3 - ZXing</title>
+    <title>Skaner R&R - Procesor Obrazu</title>
     <script src="https://unpkg.com/@zxing/library@latest"></script>
     <style>
-        body { font-family: sans-serif; text-align: center; padding: 20px; background: #f4f4f4; }
-        .container { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); max-width: 400px; margin: auto; }
-        #btn-scan { background: #d45d00; color: white; border: none; padding: 15px; font-size: 1.1rem; border-radius: 5px; width: 100%; font-weight: bold; }
-        #status { font-size: 0.9rem; color: #555; margin: 15px 0; min-height: 20px; }
-        #result { margin-top: 20px; padding: 20px; background: #d4edda; border: 2px solid #28a745; border-radius: 5px; display: none; font-size: 1.2rem; }
-        #preview { max-width: 100%; margin-top: 15px; border: 2px dashed #ccc; display: none; }
+        body { font-family: sans-serif; text-align: center; padding: 20px; background: #222; color: #eee; }
+        .container { background: #333; padding: 20px; border-radius: 10px; border: 1px solid #444; max-width: 400px; margin: auto; }
+        #btn-scan { background: #00a2ed; color: white; border: none; padding: 18px; font-size: 1.1rem; border-radius: 8px; width: 100%; font-weight: bold; cursor: pointer; }
+        #status { margin: 15px 0; font-size: 0.9rem; color: #bbb; }
+        #result { margin-top: 20px; padding: 15px; background: #1e4620; border-radius: 5px; display: none; border: 1px solid #28a745; }
+        canvas { display: none; }
+        #debug-preview { max-width: 100%; margin-top: 10px; border: 1px solid #555; display: none; filter: grayscale(100%) contrast(150%); }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>Skaner R&R (ZXing)</h1>
-    <div id="status">Gotowy do testu</div>
+    <h2>Skaner Maszyn v4</h2>
+    <div id="status">System gotowy</div>
     
     <input type="file" accept="image/*" capture="environment" id="camera-input" style="display: none;">
-    <button id="btn-scan">ZRÓB ZDJĘCIE QR</button>
+    <button id="btn-scan">FOTO I ANALIZA</button>
     
     <div id="result">
-        <small>Zidentyfikowano:</small><br>
-        <strong id="qr-data"></strong>
+        <small>ZDEKODOWANO:</small><br>
+        <strong id="qr-data" style="font-size: 1.4rem;"></strong>
     </div>
 
-    <img id="preview">
+    <p style="font-size: 0.7rem; color: #777; margin-top: 20px;">Podgląd przetworzony (High Contrast):</p>
+    <canvas id="proc-canvas"></canvas>
+    <img id="debug-preview">
 </div>
 
 <script>
     const codeReader = new ZXing.BrowserQRCodeReader();
-    const btn = document.getElementById('btn-scan');
     const input = document.getElementById('camera-input');
-    const status = document.getElementById('status');
-    const resultDiv = document.getElementById('result');
-    const qrDataSpan = document.getElementById('qr-data');
-    const preview = document.getElementById('preview');
+    const canvas = document.getElementById('proc-canvas');
+    const ctx = canvas.getContext('2d');
 
-    btn.addEventListener('click', () => {
-        input.click();
-        resultDiv.style.display = 'none';
-    });
+    document.getElementById('btn-scan').addEventListener('click', () => input.click());
 
     input.addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (!file) return;
 
-        status.innerText = "Analiza obrazu (ZXing)...";
-        const url = URL.createObjectURL(file);
-        
-        // Pokaż podgląd zdjęcia
-        preview.src = url;
-        preview.style.display = "block";
+        document.getElementById('status').innerText = "Przetwarzanie wstępne...";
+        const img = new Image();
+        img.src = URL.createObjectURL(file);
 
-        try {
-            // ZXing potrafi czytać bezpośrednio z URL obrazu lub elementu IMG
-            const result = await codeReader.decodeFromImageUrl(url);
+        img.onload = async () => {
+            // OPTYMALIZACJA: Skalujemy do 600px - idealne dla QR
+            const scale = 600 / Math.max(img.width, img.height);
+            canvas.width = img.width * scale;
+            canvas.height = img.height * scale;
+
+            // Nakładamy filtry na Canvas (jak w Photoshopie)
+            ctx.filter = "grayscale(100%) contrast(200%) brightness(120%)";
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            const processedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+            document.getElementById('debug-preview').src = processedDataUrl;
+            document.getElementById('debug-preview').style.display = "block";
+
+            document.getElementById('status').innerText = "Dekodowanie ZXing...";
             
-            if (result) {
-                qrDataSpan.innerText = result.text;
-                resultDiv.style.display = 'block';
-                status.innerText = "Kod odczytany pomyślnie!";
-                console.log(result);
+            try {
+                const result = await codeReader.decodeFromImageUrl(processedDataUrl);
+                document.getElementById('qr-data').innerText = result.text;
+                document.getElementById('result').style.display = 'block';
+                document.getElementById('status').innerText = "SUKCES!";
+            } catch (err) {
+                document.getElementById('status').innerText = "BŁĄD: Nieczytelne. Spróbuj z innej odległości.";
+                console.error(err);
             }
-        } catch (err) {
-            console.error(err);
-            status.innerText = "Błąd: Nie udało się zdekodować. Spróbuj z innej odległości.";
-            // Jeśli to błąd dekodowania (NotFoundException), po prostu nic nie znalazł
-        }
-    });
-</script>
-
-</body>
-</html><!DOCTYPE html>
-<html lang="pl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Skaner QR v2 (Debug)</title>
-    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-    <style>
-        body { font-family: sans-serif; text-align: center; padding: 20px; background: #f4f4f4; }
-        .container { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); max-width: 400px; margin: auto; }
-        #btn-scan { background: #0078d4; color: white; border: none; padding: 15px; font-size: 1rem; border-radius: 5px; width: 100%; margin-bottom: 20px; }
-        #status { font-size: 0.8rem; color: #888; margin-bottom: 10px; }
-        #result { margin: 20px 0; padding: 15px; background: #e7ffeb; border: 1px solid #28a745; border-radius: 5px; display: none; font-weight: bold; }
-        #preview { max-width: 100%; height: auto; border: 1px solid #ccc; margin-top: 10px; display: none; }
-        canvas { display: none; }
-    </style>
-</head>
-<body>
-
-<div class="container">
-    <h1>Skaner QR - Test v2</h1>
-    <div id="status">Gotowy do pracy</div>
-    
-    <input type="file" accept="image/*" capture="environment" id="camera-input" style="display: none;">
-    <button id="btn-scan">Zrób Zdjęcie Kodu QR</button>
-    
-    <div id="result">ZESKANOWANO: <span id="qr-data"></span></div>
-    
-    <p>Podgląd ostatniego zdjęcia:</p>
-    <img id="preview">
-    <canvas id="canvas"></canvas>
-</div>
-
-<script>
-    const btn = document.getElementById('btn-scan');
-    const input = document.getElementById('camera-input');
-    const status = document.getElementById('status');
-    const resultDiv = document.getElementById('result');
-    const qrDataSpan = document.getElementById('qr-data');
-    const preview = document.getElementById('preview');
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-
-    btn.addEventListener('click', () => {
-        input.click();
-        status.innerText = "Oczekiwanie na zdjęcie...";
-    });
-
-    input.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        status.innerText = "Przetwarzanie obrazu...";
-        const reader = new FileReader();
-
-        reader.onload = (event) => {
-            const img = new Image();
-            img.onload = () => {
-                // Skalujemy zdjęcie do sensownych rozmiarów (max 800px) 
-                // żeby algorytm działał szybciej i pewniej
-                let width = img.width;
-                let height = img.height;
-                const maxDim = 800;
-                
-                if (width > maxDim || height > maxDim) {
-                    if (width > height) {
-                        height *= maxDim / width;
-                        width = maxDim;
-                    } else {
-                        width *= maxDim / height;
-                        height = maxDim;
-                    }
-                }
-
-                canvas.width = width;
-                canvas.height = height;
-                ctx.drawImage(img, 0, 0, width, height);
-                
-                // Pokazujemy podgląd, żebyś wiedział co widzi skrypt
-                preview.src = canvas.toDataURL();
-                preview.style.display = "block";
-
-                try {
-                    const imageData = ctx.getImageData(0, 0, width, height);
-                    const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                        inversionAttempts: "dontInvert",
-                    });
-
-                    if (code) {
-                        qrDataSpan.innerText = code.data;
-                        resultDiv.style.display = 'block';
-                        status.innerText = "Sukces!";
-                    } else {
-                        status.innerText = "Błąd: Nie znaleziono kodu w tym zdjęciu.";
-                        alert("Algorytm nie wykrył kodu. Spróbuj zbliżyć telefon lub ustawić kod w centrum.");
-                    }
-                } catch (err) {
-                    status.innerText = "Błąd krytyczny: " + err.message;
-                }
-            };
-            img.src = event.target.result;
         };
-        reader.readAsDataURL(file);
     });
 </script>
-
-</body>
-</html><!DOCTYPE html>
-<html lang="pl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Skaner QR R&R</title>
-    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-    <style>
-        body { font-family: sans-serif; text-align: center; padding: 20px; background: #f4f4f4; }
-        .container { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); max-width: 400px; margin: auto; }
-        #btn-scan { background: #0078d4; color: white; border: none; padding: 15px; font-size: 1rem; border-radius: 5px; width: 100%; margin-bottom: 20px; }
-        #result { margin-top: 20px; padding: 15px; background: #e7f3ff; border: 1px solid #0078d4; border-radius: 5px; word-break: break-all; font-weight: bold; display: none; }
-        canvas { display: none; }
-    </style>
-</head>
-<body>
-
-<div class="container">
-    <h1>Skaner Maszyn QR</h1>
-    <input type="file" accept="image/*" capture="environment" id="camera-input" style="display: none;">
-    <button id="btn-scan">ZESKANUJ KOD QR</button>
-    
-    <div id="result">Treść kodu: <span id="qr-data"></span></div>
-    <canvas id="canvas"></canvas>
-</div>
-
-<script>
-    const btn = document.getElementById('btn-scan');
-    const input = document.getElementById('camera-input');
-    const resultDiv = document.getElementById('result');
-    const qrDataSpan = document.getElementById('qr-data');
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-
-    btn.addEventListener('click', () => {
-        input.click();
-        resultDiv.style.display = 'none';
-    });
-
-    input.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const img = new Image();
-            img.onload = () => {
-                // Rysujemy zdjęcie na ukrytym płótnie (canvas), żeby biblioteka mogła je "przeczytać"
-                canvas.width = img.width;
-                canvas.height = img.height;
-                ctx.drawImage(img, 0, 0, img.width, img.height);
-                
-                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                
-                // Wywołujemy bibliotekę jsQR
-                const code = jsQR(imageData.data, imageData.width, imageData.height);
-
-                if (code) {
-                    qrDataSpan.innerText = code.data;
-                    resultDiv.style.display = 'block';
-                    resultDiv.style.background = '#e7ffeb'; // Zielony jeśli sukces
-                } else {
-                    alert("Nie znaleziono kodu QR. Spróbuj zrobić zdjęcie z mniejszej odległości lub popraw ostrość.");
-                }
-            };
-            img.src = event.target.result;
-        };
-        reader.readAsDataURL(file);
-    });
-</script>
-
 </body>
 </html>
