@@ -3,6 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skaner QR v3 - ZXing</title>
+    <script src="https://unpkg.com/@zxing/library@latest"></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 20px; background: #f4f4f4; }
+        .container { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); max-width: 400px; margin: auto; }
+        #btn-scan { background: #d45d00; color: white; border: none; padding: 15px; font-size: 1.1rem; border-radius: 5px; width: 100%; font-weight: bold; }
+        #status { font-size: 0.9rem; color: #555; margin: 15px 0; min-height: 20px; }
+        #result { margin-top: 20px; padding: 20px; background: #d4edda; border: 2px solid #28a745; border-radius: 5px; display: none; font-size: 1.2rem; }
+        #preview { max-width: 100%; margin-top: 15px; border: 2px dashed #ccc; display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Skaner R&R (ZXing)</h1>
+    <div id="status">Gotowy do testu</div>
+    
+    <input type="file" accept="image/*" capture="environment" id="camera-input" style="display: none;">
+    <button id="btn-scan">ZRÓB ZDJĘCIE QR</button>
+    
+    <div id="result">
+        <small>Zidentyfikowano:</small><br>
+        <strong id="qr-data"></strong>
+    </div>
+
+    <img id="preview">
+</div>
+
+<script>
+    const codeReader = new ZXing.BrowserQRCodeReader();
+    const btn = document.getElementById('btn-scan');
+    const input = document.getElementById('camera-input');
+    const status = document.getElementById('status');
+    const resultDiv = document.getElementById('result');
+    const qrDataSpan = document.getElementById('qr-data');
+    const preview = document.getElementById('preview');
+
+    btn.addEventListener('click', () => {
+        input.click();
+        resultDiv.style.display = 'none';
+    });
+
+    input.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        status.innerText = "Analiza obrazu (ZXing)...";
+        const url = URL.createObjectURL(file);
+        
+        // Pokaż podgląd zdjęcia
+        preview.src = url;
+        preview.style.display = "block";
+
+        try {
+            // ZXing potrafi czytać bezpośrednio z URL obrazu lub elementu IMG
+            const result = await codeReader.decodeFromImageUrl(url);
+            
+            if (result) {
+                qrDataSpan.innerText = result.text;
+                resultDiv.style.display = 'block';
+                status.innerText = "Kod odczytany pomyślnie!";
+                console.log(result);
+            }
+        } catch (err) {
+            console.error(err);
+            status.innerText = "Błąd: Nie udało się zdekodować. Spróbuj z innej odległości.";
+            // Jeśli to błąd dekodowania (NotFoundException), po prostu nic nie znalazł
+        }
+    });
+</script>
+
+</body>
+</html><!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Skaner QR v2 (Debug)</title>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <style>
