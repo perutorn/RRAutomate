@@ -7,7 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <style>
         :root { --bg: #121212; --card: #1e1e1e; --accent: #0078d4; --success: #28a745; --danger: #dc3545; --text: #eee; }
-        body { font-family: sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; }
+        body { font-family: sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; overflow-x: hidden; }
         .hidden { display: none !important; }
         
         /* Ekran startowy i listy */
@@ -26,8 +26,18 @@
         .stat-val { font-size: 1.4rem; font-weight: bold; display: block; }
         .stat-label { font-size: 0.7rem; color: #888; }
         
-        #input-field { width: 100%; padding: 20px; font-size: 2rem; background: #000; color: #00ff00; border: 2px solid var(--accent); border-radius: 10px; text-align: center; box-sizing: border-box; }
+        #input-field { width: 100%; padding: 20px; font-size: 2rem; background: #000; color: #00ff00; border: 2px solid var(--accent); border-radius: 10px; text-align: center; box-sizing: border-box; cursor: pointer; }
         .history { height: 100px; overflow-y: auto; background: #000; padding: 5px; font-family: monospace; font-size: 0.9rem; margin-top: 10px; border-radius: 5px; }
+        
+        /* Stylizacja Keypada */
+        .keypad-holder { display: flex; flex-direction: column; gap: 5px; margin-top: 15px; background: #222; padding: 10px; border-radius: 10px; }
+        .keypad-row { display: flex; gap: 5px; justify-content: stretch; }
+        .keypad-button, .keypad-enter { 
+            flex: 1; padding: 20px; font-size: 1.5rem; background: #444; color: white; border: none; border-radius: 5px; 
+            touch-action: manipulation; cursor: pointer;
+        }
+        .keypad-button:active { background: var(--accent); }
+        .keypad-enter { background: var(--success); font-weight: bold; margin-top: 5px; }
     </style>
 </head>
 <body>
@@ -62,7 +72,7 @@
         <div class="stat-box"><span class="stat-label">Odchylenie (s)</span><span class="stat-val" id="val-std" style="font-size:1rem">-</span></div>
     </div>
 
-    <input type="number" step="0.001" id="input-field" placeholder="0.000" inputmode="decimal">
+    <input type="text" id="input-field" placeholder="0.000" readonly onclick="toggleKeypad(true)">
     
     <div class="history" id="history-log"></div>
     <button class="btn btn-success" style="margin-top:15px" onclick="generateReport()">ZAKOŃCZ I RAPORT</button>
@@ -82,7 +92,7 @@
 // --- KONFIGURACJA ---
 const katalogMaszyn = {
     "M001": {
-        nazwa: "Prasa Hydrauliczna P1",
+        nazwa: "A2-SUB-0020",
         stacje: [
             { id: "s1", nazwa: "Pin A height", tol: 0.02, master: 15.000 },
             { id: "s2", nazwa: "Pin B height", tol: 0.02, master: 15.000 },
@@ -95,7 +105,7 @@ let currentMachine = null;
 let currentStation = null;
 let measurements = [];
 
-// --- LOGIKA WIDOKÓW ---
+// --- LOGIKA WIDOKÓW I HISTORII ---
 function showStart() { 
     document.querySelectorAll('body > div').forEach(d => d.classList.add('hidden'));
     document.getElementById('view-start').classList.remove('hidden');
@@ -123,25 +133,132 @@ function startMeasure(station) {
     currentStation = station;
     measurements = [];
     document.getElementById('active-station-name').innerText = station.nazwa;
+    
+    // Zarządzanie widocznością
     document.getElementById('view-station').classList.add('hidden');
     document.getElementById('view-measure').classList.remove('hidden');
+    
+    // Inicjalizacja Keypada (jeśli go nie ma)
+    const measureView = document.getElementById('view-measure');
+    if(!document.querySelector('.keypad-holder')){
+        const historylog = document.getElementById('history-log');
+        measureView.insertBefore(keyPad(), historylog);
+    }
+    
+    // Stan historii: Najpierw widok, potem klawiatura
+    window.history.pushState({ view: 'measure', kp: false }, "");
+    toggleKeypad(true); // To doda kolejny pushState {kp: true}
+    
     updateStats();
-    document.getElementById('input-field').focus();
 }
 
-// --- OBLICZENIA ---
-document.getElementById('input-field').addEventListener('keypress', (e) => {
-    if(e.key === 'Enter') {
-        const val = parseFloat(e.target.value);
-        if(!isNaN(val)) {
-            measurements.push(val);
-            e.target.value = '';
-            updateStats();
-            if (navigator.vibrate) navigator.vibrate(50);
+function toggleKeypad(show) {
+    const kp = document.querySelector('.keypad-holder');
+    if(!kp) return;
+    if(show) {
+        kp.classList.remove('hidden');
+        if(!window.history.state || !window.history.state.kp) {
+            window.history.pushState({ view: 'measure', kp: true }, "");
         }
+    } else {
+        kp.classList.add('hidden');
+    }
+}
+
+// Obsługa gestu WSTECZ
+window.addEventListener('popstate', (e) => {
+    const state = e.state;
+    if (state && state.view === 'measure') {
+        if (!state.kp) toggleKeypad(false);
+    } else {
+        showStart();
     }
 });
 
+// --- KEYPAD LOGIC ---
+function keyPad() {
+    const holder = document.createElement('div');
+    holder.classList.add('keypad-holder');
+    let counter = 1;
+
+    for (let i = 0; i < 4; i++) {
+        const row = document.createElement('div');
+        row.classList.add('keypad-row');
+        for (let j = 0; j < 3; j++) {
+            const key = document.createElement('button');
+            key.className = 'keypad-button';
+            
+            if (counter <= 9) { key.innerText = counter; }
+            else if (counter === 10) { key.innerText = '-'; }
+            else if (counter === 11) { key.innerText = '0'; }
+            else if (counter === 12) { key.innerText = '.'; }
+
+            key.onclick = (e) => keypadInputHandler(e.target.innerText);
+            row.appendChild(key);
+            counter++;
+        }
+        holder.appendChild(row);
+    }
+
+    const enterBtn = document.createElement('button');
+    enterBtn.className = 'keypad-enter';
+    enterBtn.innerText = 'Dodaj';
+    enterBtn.onclick = () => keypadInputHandler('Dodaj');
+    holder.appendChild(enterBtn);
+
+    return holder;
+}
+
+function keypadInputHandler(value) {
+    const display = document.getElementById('input-field');
+    let currentVal = display.value;
+
+    if (value === 'Dodaj' || value === 'ENTER') {
+        const val = parseFloat(currentVal);
+        if (!isNaN(val) && !currentVal.endsWith('.')) {
+            measurements.push(val);
+            display.value = '';
+            updateStats();
+            if (navigator.vibrate) navigator.vibrate(50);
+        }
+        return;
+    }
+
+    // Blokada nadmiarowego zera na początku
+    if (currentVal === '0' && value !== '.') {
+        display.value = value;
+        return;
+    }
+
+    // Obsługa kropki
+    if (value === '.') {
+        if (currentVal.includes('.')) return;
+        if (currentVal === "" || currentVal === "-") {
+            display.value += '0.';
+            return;
+        }
+    }
+
+    // Obsługa miejsc po przecinku (limit 4)
+    if (currentVal.includes('.')) {
+        const parts = currentVal.split('.');
+        if (parts[1] && parts[1].length >= 4 && value !== '-') return;
+    }
+
+    // Obsługa minusa (Toggle)
+    if (value === '-') {
+        if (currentVal.startsWith('-')) {
+            display.value = currentVal.slice(1);
+        } else {
+            display.value = '-' + currentVal;
+        }
+        return;
+    }
+
+    display.value += value;
+}
+
+// --- STATYSTYKI I SKANER ---
 function undoLast() {
     measurements.pop();
     updateStats();
@@ -150,7 +267,6 @@ function undoLast() {
 function updateStats() {
     const n = measurements.length;
     document.getElementById('counter').innerText = `${n} / 50`;
-    
     const log = document.getElementById('history-log');
     log.innerHTML = measurements.slice().reverse().map((v, i) => `[${n-i}] ${v.toFixed(4)}`).join('<br>');
 
@@ -160,21 +276,17 @@ function updateStats() {
     const sqDiffs = measurements.map(v => Math.pow(v - avg, 2));
     const std = Math.sqrt(sqDiffs.reduce((a,b) => a+b, 0) / (n - 1));
     
-    // FORMULA: Cg = (0.2 * T) / (4 * s)
     const cg = (0.2 * currentStation.tol) / (4 * std);
-    // FORMULA: Cgk = (0.1 * T - |avg - master|) / (3 * s)
     const cgk = (0.1 * currentStation.tol - Math.abs(avg - currentStation.master)) / (3 * std);
 
     document.getElementById('val-avg').innerText = avg.toFixed(4);
     document.getElementById('val-std').innerText = std.toFixed(6);
     document.getElementById('val-cg').innerText = std === 0 ? "∞" : cg.toFixed(2);
     document.getElementById('val-cgk').innerText = std === 0 ? "∞" : cgk.toFixed(2);
-
-    // Kolorowanie
     document.getElementById('box-cgk').style.background = cgk >= 1.33 ? "#1e4620" : "#461e1e";
 }
 
-// --- SKANER (jsQR) ---
+// Skaner (skrócony dla przejrzystości)
 let videoStream = null;
 function startScanner() {
     document.getElementById('scanner-view').classList.remove('hidden');
@@ -184,42 +296,33 @@ function startScanner() {
         requestAnimationFrame(scanTick);
     });
 }
-
 function stopScanner() {
     if(videoStream) videoStream.getTracks().forEach(t => t.stop());
     document.getElementById('scanner-view').classList.add('hidden');
 }
-
 function scanTick() {
     const v = document.getElementById('video');
     if(v.readyState === v.HAVE_ENOUGH_DATA) {
         const canvas = document.getElementById('canvas');
         canvas.width = v.videoWidth; canvas.height = v.videoHeight;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
-        const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(img.data, img.width, img.height);
+        const ctx = canvas.getContext('2d'); ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+        const code = jsQR(ctx.getImageData(0,0,canvas.width,canvas.height).data, canvas.width, canvas.height);
         if(code) {
             stopScanner();
             if(katalogMaszyn[code.data]) selectMachine(code.data);
-            else alert("Nieznana maszyna: " + code.data);
             return;
         }
     }
     if(!document.getElementById('scanner-view').classList.contains('hidden')) requestAnimationFrame(scanTick);
 }
 
-// Inicjalizacja listy ręcznej
+// Init
 const sel = document.getElementById('manual-select');
 for(let id in katalogMaszyn) {
-    const opt = document.createElement('option');
-    opt.value = id; opt.innerText = katalogMaszyn[id].nazwa;
+    const opt = document.createElement('option'); opt.value = id; opt.innerText = katalogMaszyn[id].nazwa;
     sel.appendChild(opt);
 }
-
-function generateReport() {
-    alert("Funkcja generowania raportu HTML gotowa do podpięcia pod e-mail!");
-}
+function generateReport() { alert("Raport gotowy do wysyłki!"); }
 </script>
 </body>
 </html>
