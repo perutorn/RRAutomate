@@ -124,6 +124,66 @@ let currentStation = null;
 let machineAndStation = '';
 let measurements = [];
 
+let videoStream = null;
+let scanning = false;
+
+async function startScanner() {
+    const video = document.getElementById('video');
+    const scannerView = document.getElementById('scanner-view');
+
+    try {
+        // Prośba o dostęp do aparatu (musi być HTTPS!)
+        videoStream = await navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: "environment" } 
+        });
+        
+        video.srcObject = videoStream;
+        scannerView.classList.remove('hidden');
+        scanning = true;
+        
+        // Rozpoczęcie analizy klatek obrazu
+        requestAnimationFrame(scanTick);
+    } catch (err) {
+        alert("Błąd aparatu: " + err.message + "\nUpewnij się, że używasz HTTPS.");
+        console.error(err);
+    }
+}
+
+function scanTick() {
+    if (!scanning) return;
+    const video = document.getElementById('video');
+
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        const canvas = document.createElement("canvas");
+        canvas.height = video.videoHeight;
+        canvas.width = video.videoWidth;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+        if (code) {
+            // Zakładamy, że QR zawiera ID maszyny, np. "M001"
+            if (katalogMaszyn[code.data]) {
+                stopScanner();
+                selectMachine(code.data);
+            } else {
+                console.log("Nieznany kod QR: " + code.data);
+            }
+        }
+    }
+    requestAnimationFrame(scanTick);
+}
+
+function stopScanner() {
+    scanning = false;
+    if (videoStream) {
+        videoStream.getTracks().forEach(track => track.stop());
+    }
+    document.getElementById('scanner-view').classList.add('hidden');
+}
+
 // Inicjalizacja Keypada
 function initKeypad() {
     const kp = document.getElementById('keypad');
