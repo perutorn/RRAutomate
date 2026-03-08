@@ -290,103 +290,95 @@ function updateStats() {
 }
 
 
-function drawChart() {
-    const canvas = document.getElementById('chart_canva');
+function drawChart(canvasId = 'chart_canva') {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+
     const ctx = canvas.getContext('2d');
     const w = canvas.width = canvas.offsetWidth;
     const h = canvas.height = canvas.offsetHeight;
     
     ctx.clearRect(0, 0, w, h);
-    
+    if (!currentStation) return;
+
     const m = currentStation.master;
     const t = currentStation.tol;
     
-    // Skalowanie Y: Master na środku, +/- 1.2 * Tolerancja dla zapasu wizualnego
-    //const rangeY = t * 0.9;
-    // Wewnątrz drawChart():
-let minVal = Math.min(...measurements, m - t*0.1);
-let maxVal = Math.max(...measurements, m + t*0.1);
-let buffer = (maxVal - minVal) * 0.2; // Dodaj 20% marginesu
+    // Obliczanie zakresu z uwzględnieniem Mastera i wszystkich pomiarów
+    let points = measurements.length > 0 ? measurements : [m];
+    let minVal = Math.min(...points, m - t * 0.5);
+    let maxVal = Math.max(...points, m + t * 0.5);
+    let buffer = (maxVal - minVal) * 0.2;
 
-const rangeY = (maxVal - minVal) + buffer;
-const midPoint = (maxVal + minVal) / 2;
+    const rangeY = (maxVal - minVal) + (buffer || 0.01);
+    const midPoint = (maxVal + minVal) / 2;
 
-// Nowy yScale uwzględniający dynamiczny środek
-const yScale = (val) => h/2 - ((val - midPoint) / rangeY) * h;
-    //const yScale = (val) => h/2 - ((val - m) / rangeY) * (h/2);
+    const yScale = (val) => h/2 - ((val - midPoint) / rangeY) * h;
+    const xStep = w / 50;
 
-    // --- RYSOWANIE STREF (TŁA) ---
-    // 1. Strefa Czerwona (Tło domyślne canvasa, nic nie rysujemy)
-
-    // 2. Strefa Żółta (Obszar tolerancji technicznej)
-    ctx.fillStyle = 'rgba(255, 255, 0, 0.1)'; // Przezroczysty żółty
+    // --- 1. RYSOWANIE STREF TŁA ---
+    // Żółta (Tolerancja)
+    ctx.fillStyle = 'rgba(255, 255, 0, 0.08)';
     ctx.fillRect(0, yScale(m + t/2), w, yScale(m - t/2) - yScale(m + t/2));
 
-    // 3. Strefa Zielona (Wymaganie Cg > 1.33)
-    // Reguła: Cg > 1.33 oznacza, że 4*Std nie może przekraczać 20% Tolerancji (T/5)
-    // Pasek zielony to +/- 10% Tolerancji wokół Mastera
+    // Zielona (Cg/Cgk target zone)
     const greenZoneT = t * 0.1; 
-    ctx.fillStyle = 'rgba(0, 255, 0, 0.2)'; // Przezroczysty zielony
+    ctx.fillStyle = 'rgba(34, 197, 94, 0.15)';
     ctx.fillRect(0, yScale(m + greenZoneT), w, yScale(m - greenZoneT) - yScale(m + greenZoneT));
 
+    // --- 2. LINIE REFERENCYJNE ---
+    ctx.setLineDash([5, 5]);
+    ctx.strokeStyle = '#ef4444'; // Czerwone linie USL/LSL
+    ctx.beginPath(); ctx.moveTo(0, yScale(m+t/2)); ctx.lineTo(w, yScale(m+t/2)); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, yScale(m-t/2)); ctx.lineTo(w, yScale(m-t/2)); ctx.stroke();
 
-    // --- RYSOWANIE LINII ---
-    // Linie tolerancji detalu (Czerwone)
-    ctx.strokeStyle = '#880000'; ctx.setLineDash([5, 5]); ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(0, yScale(m + t/2)); ctx.lineTo(w, yScale(m + t/2)); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(0, yScale(m - t/2)); ctx.lineTo(w, yScale(m - t/2)); ctx.stroke();
-
-    // Linia Master (Zielona)
-    ctx.strokeStyle = varColor('--success'); ctx.setLineDash([]); ctx.lineWidth = 2;
+    ctx.setLineDash([]);
+    ctx.strokeStyle = '#22c55e'; // Zielona linia Master
+    ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(0, yScale(m)); ctx.lineTo(w, yScale(m)); ctx.stroke();
 
-
-    // --- RYSOWANIE PUNKTÓW (POMIARÓW) ---
-    ctx.fillStyle = varColor('--accent');
-    const xStep = w / 50;
-measurements.forEach((v, i) => {
-    const x = i * xStep + 5;
-    const y = yScale(v);
-    
-    const diff = Math.abs(v - m);
-    const greenZoneT = t * 0.1; // Ta sama logika co przy rysowaniu paska
-
-    if (diff > t/2) {
-        ctx.fillStyle = '#FF4444'; // Wyrazisty czerwony
-    } else if (diff > greenZoneT) {
-        ctx.fillStyle = '#FFD700'; // Wyrazisty złoty/żółty
-    } else {
-        ctx.fillStyle = '#FFFFFF'; // Biały - idealnie widoczny na zielonym tle
+    // --- 3. LINIA ŁĄCZĄCA PUNKTY (Run Chart) ---
+    if (measurements.length > 1) {
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)'; // Subtelny błękit
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        measurements.forEach((v, i) => {
+            const x = i * xStep + 10;
+            const y = yScale(v);
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
     }
-    
-    ctx.beginPath();
-    ctx.arc(x, y, 4, 0, 7); // Zwiększyłem promień z 3 na 4 dla lepszej widoczności
-    ctx.fill();
-    
-    // Opcjonalnie: obwódka wokół kropki, żeby nie "puchła" na tle
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-});
-    
-    
-    // Ustawienia czcionki dla etykiet
-ctx.fillStyle = "#888"; 
-ctx.font = "10px monospace";
-ctx.textAlign = "right";
 
-// Etykieta Górnej Tolerancji
-ctx.fillText((m + t/2).toFixed(3), w - 5, yScale(m + t/2) - 5);
+    // --- 4. PUNKTY POMIAROWE ---
+    measurements.forEach((v, i) => {
+        const x = i * xStep + 10;
+        const y = yScale(v);
+        const diff = Math.abs(v - m);
 
-// Etykieta Mastera (wyróżniona)
-ctx.fillStyle = varColor('--success');
-ctx.fillText(m.toFixed(3), w - 5, yScale(m) - 5);
+        // Dynamiczny kolor kropki
+        if (diff > t/2) ctx.fillStyle = '#ef4444';      // Poza tolerancją
+        else if (diff > greenZoneT) ctx.fillStyle = '#eab308'; // Ostrzeżenie
+        else ctx.fillStyle = '#ffffff';                 // OK
 
-// Etykieta Dolnej Tolerancji
-ctx.fillStyle = "#888";
-ctx.fillText((m - t/2).toFixed(3), w - 5, yScale(m - t/2) + 12);
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+    });
+
+    // --- 5. ETYKIETY (TYLKO NA KOŃCU) ---
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "10px monospace";
+    ctx.textAlign = "right";
+    ctx.fillText((m + t/2).toFixed(3), w - 5, yScale(m + t/2) - 5);
+    ctx.fillText((m - t/2).toFixed(3), w - 5, yScale(m - t/2) + 12);
+    ctx.fillStyle = "#22c55e";
+    ctx.fillText("MASTER: " + m.toFixed(3), w - 5, yScale(m) - 5);
 }
-
 function varColor(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
 
 // Nawigacja
