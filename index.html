@@ -3,11 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>R&R Calc v2.0 - Factory Pro</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>R&R Automate</title>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <style>
         :root { --bg: #121212; --card: #1e1e1e; --accent: #0078d7; --success: #28a745; --danger: #dc3545; --text: #eee;}
-        body { font-family: sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
+        body { font-family: sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; overflow: hidden; height: 100dvh; display: flex; flex-direction: column; }
         .hidden { display: none !important; }
         
         /* Ekran startowy */
@@ -28,22 +30,22 @@
 
         /* Wykres */
         /* Wykres z półprzezroczystym tłem dla stref */
-		#chart_canva { width: 100%;  height: 140px; border-radius: 8px; border: 1px solid #333;  margin-bottom: 8px; background-color: rgba(255, 0, 0, 0.1); 
+		#chart_canva { width: 100%;  height: 30dvh; border-radius: 8px; border: 1px solid #333;  margin-bottom: 8px; background-color: rgba(255, 0, 0, 0.1); 
 }
 
         /* Historia pozioma */
         /*.history-row { display: flex; gap: 6px; overflow-x: auto; padding: 4px 0; margin-bottom: 8px; font-family: monospace; } */
-        .hist-item { background: #333; padding: 4px 10px; border-radius: 15px; font-size: 0.85rem; flex-shrink: 0; border: 1px solid #444; }
+        .hist-item { background: #333; padding: 4px 5px; border-radius: 15px; font-size: 0.85rem; flex-shrink: 0; border: 1px solid #444; }
         
-        .history-row {display: flex; gap: 6px; overflow-x: auto; padding: 10px 5px; margin-bottom: 8px;-webkit-overflow-scrolling: touch; }
+        .history-row {display: flex; gap: 6px; overflow-x: auto; padding: 10px 5px; margin-bottom: 8px;-webkit-overflow-scrolling: touch; min-height: 4dvh; align-items: center;}
         /* Ukrycie paska przewijania (scrollbara), żeby nie szpecił */
         .history-row::-webkit-scrollbar {display: none;}
         .input-container { position: relative; margin-bottom: 10px; }
         #input-field { width: 100%; padding: 15px; font-size: 1.4rem; background: #000; color: #00ff00; border: 2px solid var(--accent); border-radius: 10px; text-align: center; box-sizing: border-box; }
         .btn-undo { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: #333; border: none; color: white; padding: 10px; border-radius: 6px; cursor: pointer; }
 
-        .keypad-holder { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; background: #1a1a1a; padding: 8px; border-radius: 10px; flex-grow: 1; }
-        .key-btn { padding: 18px; font-size: 1.4rem; background: #333; color: white; border: none; border-radius: 6px; touch-action: manipulation; }
+        .keypad-holder { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; background: #1a1a1a; padding: 8px; margin-bottom: 20px; border-radius: 10px; flex-grow: 1; }
+        .key-btn { padding: 10px; font-size: 1.2rem; background: #333; color: white; border: none; border-radius: 6px; touch-action: manipulation; }
         .key-btn:active { background: var(--accent); }
         .key-enter { grid-column: span 3; background: var(--success); font-weight: bold; padding: 15px; }
 
