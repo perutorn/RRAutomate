@@ -4,8 +4,8 @@ const ASSETS = [
     './',
     './index.html',
     './manifest.json',
-    './icon192.png',
-    './icon512.png'
+    './rrautomate192.png',
+    './rrautomate512.png'
 ];
 
 // 1. Instalacja
