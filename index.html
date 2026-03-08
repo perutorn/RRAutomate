@@ -40,7 +40,7 @@
         /*.history-row { display: flex; gap: 6px; overflow-x: auto; padding: 4px 0; margin-bottom: 8px; font-family: monospace; } */
         .hist-item { background: #333; padding: 4px 5px; border-radius: 15px; font-size: 0.85rem; flex-shrink: 0; border: 1px solid #444; }
         
-        .history-row {display: flex; gap: 6px; overflow-x: auto; padding: 10px 5px; margin-bottom: 8px;-webkit-overflow-scrolling: touch; min-height: 4dvh; align-items: center;}
+        .history-row {background-color: rgba(255,255,255, 0.1); display: flex; gap: 6px; overflow-x: auto; padding: 10px 5px; margin-bottom: 8px;-webkit-overflow-scrolling: touch; min-height: 4dvh; align-items: center;}
         /* Ukrycie paska przewijania (scrollbara), żeby nie szpecił */
         .history-row::-webkit-scrollbar {display: none;}
         .input-container { position: relative; margin-bottom: 10px; }
@@ -124,93 +124,39 @@ let currentStation = null;
 let machineAndStation = '';
 let measurements = [];
 
-async function startScanner() {
-    lastResult = null;
-    stabilityCount = 0;
-    const scannerView = document.getElementById('scanner-view');
-    scannerView.classList.remove('hidden');
-    
-    try {
-        // Idealne parametry dla kodów QR na hali (ostrość + jasność)
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { 
-                facingMode: "environment", 
-                width: { ideal: 1280 }, 
-                height: { ideal: 720 },
-                frameRate: { ideal: 30 }
-            } 
-        });
-        
-        videoStream = stream;
-        videoTrack = stream.getVideoTracks()[0];
-        const v = document.getElementById('video');
-        v.srcObject = stream;
-        
-        // Czekamy, aż wideo faktycznie ruszy przed skanowaniem
-        v.onloadedmetadata = () => {
-            v.play();
-            requestAnimationFrame(scanTick);
-        };
-    } catch (err) {
-        alert("Błąd kamery: " + err.message);
-        scannerView.classList.add('hidden');
-    }
+// --- SKANER (jsQR) ---
+let videoStream = null;
+function startScanner() {
+    document.getElementById('scanner-view').classList.remove('hidden');
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then(s => {
+        videoStream = s;
+        document.getElementById('video').srcObject = s;
+        requestAnimationFrame(scanTick);
+    });
+}
+
+function stopScanner() {
+    if(videoStream) videoStream.getTracks().forEach(t => t.stop());
+    document.getElementById('scanner-view').classList.add('hidden');
 }
 
 function scanTick() {
     const v = document.getElementById('video');
-    const scannerView = document.getElementById('scanner-view');
-    const reticle = document.getElementById('scanner-reticle');
-    
-    // Jeśli widok jest ukryty, przerywamy pętlę
-    if (scannerView.classList.contains('hidden')) return;
-
-    if (v.readyState === v.HAVE_ENOUGH_DATA) {
-        // Tworzymy bufor w pamięci (rozwiązuje problem braku elementu w HTML)
-        const canvas = document.createElement('canvas');
-        canvas.width = v.videoWidth;
-        canvas.height = v.videoHeight;
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if(v.readyState === v.HAVE_ENOUGH_DATA) {
+        const canvas = document.getElementById('canvas');
+        canvas.width = v.videoWidth; canvas.height = v.videoHeight;
+        const ctx = canvas.getContext('2d');
         ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
-        
         const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(img.data, img.width, img.height, {
-            inversionAttempts: "dontInvert", // Szybsze działanie
-        });
-        
-        if (code) {
-            if (code.data === lastResult) {
-                stabilityCount++;
-                if (reticle) reticle.classList.add('scanning');
-            } else {
-                lastResult = code.data;
-                stabilityCount = 1;
-                if (reticle) reticle.classList.remove('scanning');
-            }
-
-            // Stabilizacja: kod musi być odczytany poprawnie 3 razy z rzędu
-            if (stabilityCount >= 3) { // 3 klatki to ok. 100ms
-                if (reticle) reticle.classList.add('success');
-                if (navigator.vibrate) navigator.vibrate(100);
-                
-                // Opóźnienie dla efektu wizualnego sukcesu
-                setTimeout(() => {
-                    stopScanner();
-                    if (katalogMaszyn[code.data]) {
-                        selectMachine(code.data);
-                    } else {
-                        alert("Maszyna " + code.data + " nie figuruje w katalogu.");
-                    }
-                }, 200);
-                return; // Sukces - wychodzimy z pętli
-            }
-        } else {
-            stabilityCount = 0;
-            if (reticle) reticle.classList.remove('scanning', 'success');
+        const code = jsQR(img.data, img.width, img.height);
+        if(code) {
+            stopScanner();
+            if(katalogMaszyn[code.data]) selectMachine(code.data);
+            else alert("Nieznana maszyna: " + code.data);
+            return;
         }
     }
-    
-    requestAnimationFrame(scanTick);
+    if(!document.getElementById('scanner-view').classList.contains('hidden')) requestAnimationFrame(scanTick);
 }
 
 // Inicjalizacja Keypada
