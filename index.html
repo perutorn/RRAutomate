@@ -154,26 +154,44 @@ function scanTick() {
     const video = document.getElementById('video');
 
     if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        // Tworzymy tymczasowy canvas w pamięci o wymiarach klatki wideo
         const canvas = document.createElement("canvas");
-        canvas.height = video.videoHeight;
         canvas.width = video.videoWidth;
-        const ctx = canvas.getContext("2d");
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        
+        // Rysujemy obecną klatkę z kamery na tym canvasie
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         
+        // Pobieramy surowe dane o pikselach (to jest to, czego potrzebuje jsQR)
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(imageData.data, imageData.width, imageData.height);
+        
+        // Próba odczytu kodu
+        const code = jsQR(imageData.data, imageData.width, imageData.height, {
+            inversionAttempts: "dontInvert",
+        });
 
         if (code) {
-            // Zakładamy, że QR zawiera ID maszyny, np. "M001"
+            console.log("Znaleziono kod:", code.data);
+            
+            // Logika dopasowania do Twojego katalogu maszyn
             if (katalogMaszyn[code.data]) {
+                vibrateSuccess(); // Opcjonalna wibracja przy sukcesie
                 stopScanner();
                 selectMachine(code.data);
+                return; // Kończymy skanowanie po sukcesie
             } else {
-                console.log("Nieznany kod QR: " + code.data);
+                // Jeśli kod jest poprawny, ale nie ma go w bazie
+                console.warn("Maszyna " + code.data + " nie istnieje w katalogu.");
             }
         }
     }
+    // Jeśli nie znaleziono kodu, prosimy o kolejną klatkę (pętla)
     requestAnimationFrame(scanTick);
+}
+
+function vibrateSuccess() {
+    if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
 }
 
 function stopScanner() {
