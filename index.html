@@ -3,52 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>R&R Calc v1.0</title>
+    <title>R&R Calc v2.0 - Factory Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <style>
-        :root { --bg: #121212; --card: #1e1e1e; --accent: #0078d4; --success: #28a745; --danger: #dc3545; --text: #eee; }
-        body { font-family: sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; overflow-x: hidden; }
+        :root { --bg: #121212; --card: #1e1e1e; --accent: #0078d7; --success: #28a745; --danger: #dc3545; --text: #eee;}
+        body { font-family: sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
         .hidden { display: none !important; }
         
-        /* Ekran startowy i listy */
+        /* Ekran startowy */
         .btn { background: var(--accent); color: white; border: none; padding: 15px; border-radius: 8px; width: 100%; font-size: 1.1rem; cursor: pointer; margin-bottom: 10px; }
-        .btn-success { background: var(--success); }
-        .card { background: var(--card); padding: 15px; border-radius: 10px; margin-bottom: 10px; border: 1px solid #333; }
-        
-        /* Skaner */
-        #scanner-view { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 100; }
-        video { width: 100%; height: 100%; object-fit: cover; }
-        .reticle { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 200px; height: 200px; border: 2px solid #00ff00; }
+        .card { background: var(--card); padding: 15px; border-radius: 10px; border: 1px solid #333; }
 
-        /* Panel pomiarowy */
-        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
-        .stat-box { background: #2a2a2a; padding: 10px; border-radius: 5px; text-align: center; }
-        .stat-val { font-size: 1.4rem; font-weight: bold; display: block; }
-        .stat-label { font-size: 0.7rem; color: #888; }
+        /* Panel pomiarowy - Układ warstwowy */
+        .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+        #counter { font-weight: bold; color: var(--accent); }
+
+        /* Statystyki jako "Pigułki" */
+        .status-bar { display: flex; gap: 4px; margin-bottom: 5px; }
+        .indicator { flex: 1; padding: 4px; border-radius: 8px; text-align: center; background: #222; border: 1px solid #444; transition: 0.3s; }
+        .ind-label { font-size: 0.6rem; color: #888; display: block; text-transform: uppercase; }
+        .ind-val { font-size: 1rem; font-weight: bold; }
+        .pass { background: #1e4620 !important; border-color: var(--success) !important; }
+        .fail { background: #461e1e !important; border-color: var(--danger) !important; }
+
+        /* Wykres */
+        /* Wykres z półprzezroczystym tłem dla stref */
+		#chart_canva { width: 100%;  height: 140px; border-radius: 8px; border: 1px solid #333;  margin-bottom: 8px; background-color: rgba(255, 0, 0, 0.1); 
+}
+
+        /* Historia pozioma */
+        /*.history-row { display: flex; gap: 6px; overflow-x: auto; padding: 4px 0; margin-bottom: 8px; font-family: monospace; } */
+        .hist-item { background: #333; padding: 4px 10px; border-radius: 15px; font-size: 0.85rem; flex-shrink: 0; border: 1px solid #444; }
         
-        #input-field { width: 100%; padding: 20px; font-size: 2rem; background: #000; color: #00ff00; border: 2px solid var(--accent); border-radius: 10px; text-align: center; box-sizing: border-box; cursor: pointer; }
-        .history { height: 100px; overflow-y: auto; background: #000; padding: 5px; font-family: monospace; font-size: 0.9rem; margin-top: 10px; border-radius: 5px; }
-        
-        /* Stylizacja Keypada */
-        .keypad-holder { display: flex; flex-direction: column; gap: 5px; margin-top: 15px; background: #222; padding: 10px; border-radius: 10px; }
-        .keypad-row { display: flex; gap: 5px; justify-content: stretch; }
-        .keypad-button, .keypad-enter { 
-            flex: 1; padding: 20px; font-size: 1.5rem; background: #444; color: white; border: none; border-radius: 5px; 
-            touch-action: manipulation; cursor: pointer;
-        }
-        .keypad-button:active { background: var(--accent); }
-        .keypad-enter { background: var(--success); font-weight: bold; margin-top: 5px; }
+        .history-row {display: flex; gap: 6px; overflow-x: auto; padding: 10px 5px; margin-bottom: 8px;-webkit-overflow-scrolling: touch; }
+        /* Ukrycie paska przewijania (scrollbara), żeby nie szpecił */
+        .history-row::-webkit-scrollbar {display: none;}
+        .input-container { position: relative; margin-bottom: 10px; }
+        #input-field { width: 100%; padding: 15px; font-size: 1.4rem; background: #000; color: #00ff00; border: 2px solid var(--accent); border-radius: 10px; text-align: center; box-sizing: border-box; }
+        .btn-undo { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: #333; border: none; color: white; padding: 10px; border-radius: 6px; cursor: pointer; }
+
+        .keypad-holder { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; background: #1a1a1a; padding: 8px; border-radius: 10px; flex-grow: 1; }
+        .key-btn { padding: 18px; font-size: 1.4rem; background: #333; color: white; border: none; border-radius: 6px; touch-action: manipulation; }
+        .key-btn:active { background: var(--accent); }
+        .key-enter { grid-column: span 3; background: var(--success); font-weight: bold; padding: 15px; }
+
+        /* Skaner */
+        #scanner-view { position: fixed; inset: 0; background: #000; z-index: 1000; }
+        video { width: 100%; height: 100%; object-fit: cover; }
     </style>
 </head>
 <body>
 
 <div id="view-start">
-    <h2 style="text-align:center">R&R Analizer</h2>
-    <button class="btn" onclick="startScanner()">SKANUJ KOD MASZYNY</button>
+    <h2 style="text-align:center">R&R Automate</h2>
+    <button class="btn" onclick="startScanner()">SKANUJ KOD QR</button>
     <div class="card">
-        <label>Lub wybierz ręcznie:</label>
-        <select id="manual-select" class="btn" style="background:#333; margin-top:10px" onchange="selectMachine(this.value)">
-            <option value="">-- Wybierz maszynę --</option>
+        <select id="manual-select" class="btn" style="background:#333" onchange="selectMachine(this.value)">
+            <option value="">-- Wybierz stację --</option>
         </select>
     </div>
 </div>
@@ -60,269 +71,308 @@
 </div>
 
 <div id="view-measure" class="hidden">
-    <div style="display:flex; justify-content: space-between; align-items: center;">
-        <h3 id="active-station-name">Stacja</h3>
-        <span id="counter" style="background:var(--accent); padding:5px 10px; border-radius:15px">0 / 50</span>
-    </div>
-    
-    <div class="stats-grid">
-        <div class="stat-box" id="box-cg"><span class="stat-label">Cg (4σ)</span><span class="stat-val" id="val-cg">-</span></div>
-        <div class="stat-box" id="box-cgk"><span class="stat-label">Cgk</span><span class="stat-val" id="val-cgk">-</span></div>
-        <div class="stat-box"><span class="stat-label">Średnia</span><span class="stat-val" id="val-avg" style="font-size:1rem">-</span></div>
-        <div class="stat-box"><span class="stat-label">Odchylenie (s)</span><span class="stat-val" id="val-std" style="font-size:1rem">-</span></div>
+    <div class="header-row">
+		<button onclick="showViewStation()" style="color:var(--accent); background:none; border:none; padding:10px">← Powrót</button>
+        <span id="active-station-name" style="font-size: 0.7rem; color: #bbb;">Stacja</span>
+        <span id="counter">0 / 50</span>
     </div>
 
-    <input type="text" id="input-field" placeholder="0.000" readonly onclick="toggleKeypad(true)">
+    <div class="status-bar">
+        <div class="indicator" id="ind-cg"><span class="ind-label">Cg (4σ)</span><span class="ind-val" id="val-cg">-</span></div>
+        <div class="indicator" id="ind-cgk"><span class="ind-label">Cgk</span><span class="ind-val" id="val-cgk">-</span></div>
+        <div class="indicator"><span class="ind-label">Średnia</span><span class="ind-val" id="val-avg" style="font-size: 0.9rem;">-</span></div>
+    </div>
+
+    <canvas id="chart_canva"></canvas>
+
+    <div class="history-row" id="history-log"></div>
+
+    <div class="input-container">
+        <input type="text" id="input-field" placeholder="0.000" readonly>
+        <button class="btn-undo" onclick="undoLast()">⟲</button>
+    </div>
+
+    <div class="keypad-holder" id="keypad">
+        </div>
     
-    <div class="history" id="history-log"></div>
-    <button class="btn btn-success" style="margin-top:15px" onclick="generateReport()">ZAKOŃCZ I RAPORT</button>
-    <button class="btn" style="background:#444" onclick="undoLast()">COFNIJ OSTATNI</button>
+    <button id="btn-final" class="btn hidden" style="background: var(--success); margin-top: 10px;" onclick="generateReport()">ZAKOŃCZ I WYŚLIJ RAPORT</button>
 </div>
 
 <div id="scanner-view" class="hidden">
-    <div id="status" style="position:absolute; top:10px; width:100%; text-align:center; z-index:110">Celuj w kod QR</div>
     <video id="video" autoplay playsinline></video>
-    <div class="reticle"></div>
-    <button onclick="stopScanner()" style="position:absolute; bottom:20px; left:50%; transform:translateX(-50%); padding:15px; z-index:110">Anuluj</button>
+    <button onclick="stopScanner()" style="position:absolute; bottom:30px; left:50%; transform:translateX(-50%); padding:15px; border-radius:10px;">ANULUJ</button>
 </div>
 
-<canvas id="canvas" style="display:none"></canvas>
-
 <script>
-// --- KONFIGURACJA ---
 const katalogMaszyn = {
     "M001": {
         nazwa: "A2-SUB-0020",
         stacje: [
-            { id: "s1", nazwa: "Pin A height", tol: 0.02, master: 15.000 },
-            { id: "s2", nazwa: "Pin B height", tol: 0.02, master: 15.000 },
-            { id: "s3", nazwa: "Swash plate thickness", tol: 0.05, master: 20.000 }
+            { id: "s1", nazwa: "Pin A height", tol: 0.6, master: 0.000 },
+            { id: "s2", nazwa: "Pin B height", tol: 1.0, master: 2.000 },
+            { id: "s3", nazwa: "Swash plate", tol: 0.05, master: 20.000 }
         ]
     }
 };
 
-let currentMachine = null;
 let currentStation = null;
+let machineAndStation = '';
 let measurements = [];
 
-// --- LOGIKA WIDOKÓW I HISTORII ---
-function showStart() { 
-    document.querySelectorAll('body > div').forEach(d => d.classList.add('hidden'));
-    document.getElementById('view-start').classList.remove('hidden');
-}
+// Inicjalizacja Keypada
+function initKeypad() {
+    const kp = document.getElementById('keypad');
+    kp.innerHTML = ''; 
+    kp.style.display = 'grid';
+    kp.style.gridTemplateColumns = 'repeat(3, 1fr)';
+    kp.style.gap = '5px';
+    
+    // Standardowe klawisze
+    const keys = [
+        '1','2','3',
+        '4','5','6',
+        '7','8','9',
+        '-','0','.'
+    ];
 
-function selectMachine(id) {
-    if(!id) return;
-    currentMachine = katalogMaszyn[id];
-    document.getElementById('selected-machine-name').innerText = currentMachine.nazwa;
-    const list = document.getElementById('stations-list');
-    list.innerHTML = '';
-    currentMachine.stacje.forEach(s => {
+    keys.forEach(k => {
         const b = document.createElement('button');
-        b.className = 'btn';
-        b.style.background = '#444';
-        b.innerText = s.nazwa;
-        b.onclick = () => startMeasure(s);
-        list.appendChild(b);
+        b.className = 'key-btn';
+        b.innerText = k;
+        b.onclick = () => handleInput(k);
+        kp.appendChild(b);
     });
-    document.getElementById('view-start').classList.add('hidden');
-    document.getElementById('view-station').classList.remove('hidden');
+
+    // Przycisk C (1 kolumna)
+    const cBtn = document.createElement('button');
+    cBtn.className = 'key-btn';
+    cBtn.innerText = 'C';
+    cBtn.style.background = '#444';
+    cBtn.style.color = '#ff4444';
+    cBtn.onclick = () => handleInput('C');
+    kp.appendChild(cBtn);
+
+    // Przycisk DODAJ (2 kolumny)
+    const ent = document.createElement('button');
+    ent.className = 'key-btn key-enter';
+    ent.innerText = 'DODAJ POMIAR';
+    ent.style.gridColumn = 'span 2'; 
+    ent.onclick = () => handleInput('ENTER');
+    kp.appendChild(ent);
 }
 
-function startMeasure(station) {
-    currentStation = station;
-    measurements = [];
-    document.getElementById('active-station-name').innerText = station.nazwa;
+function handleInput(val) {
+    const disp = document.getElementById('input-field');
     
-    // Zarządzanie widocznością
-    document.getElementById('view-station').classList.add('hidden');
-    document.getElementById('view-measure').classList.remove('hidden');
-    
-    // Inicjalizacja Keypada (jeśli go nie ma)
-    const measureView = document.getElementById('view-measure');
-    if(!document.querySelector('.keypad-holder')){
-        const historylog = document.getElementById('history-log');
-        measureView.insertBefore(keyPad(), historylog);
-    }
-    
-    // Stan historii: Najpierw widok, potem klawiatura
-    window.history.pushState({ view: 'measure', kp: false }, "");
-    toggleKeypad(true); // To doda kolejny pushState {kp: true}
-    
-    updateStats();
-}
-
-function toggleKeypad(show) {
-    const kp = document.querySelector('.keypad-holder');
-    if(!kp) return;
-    if(show) {
-        kp.classList.remove('hidden');
-        if(!window.history.state || !window.history.state.kp) {
-            window.history.pushState({ view: 'measure', kp: true }, "");
-        }
-    } else {
-        kp.classList.add('hidden');
-    }
-}
-
-// Obsługa gestu WSTECZ
-window.addEventListener('popstate', (e) => {
-    const state = e.state;
-    if (state && state.view === 'measure') {
-        if (!state.kp) toggleKeypad(false);
-    } else {
-        showStart();
-    }
-});
-
-// --- KEYPAD LOGIC ---
-function keyPad() {
-    const holder = document.createElement('div');
-    holder.classList.add('keypad-holder');
-    let counter = 1;
-
-    for (let i = 0; i < 4; i++) {
-        const row = document.createElement('div');
-        row.classList.add('keypad-row');
-        for (let j = 0; j < 3; j++) {
-            const key = document.createElement('button');
-            key.className = 'keypad-button';
-            
-            if (counter <= 9) { key.innerText = counter; }
-            else if (counter === 10) { key.innerText = '-'; }
-            else if (counter === 11) { key.innerText = '0'; }
-            else if (counter === 12) { key.innerText = '.'; }
-
-            key.onclick = (e) => keypadInputHandler(e.target.innerText);
-            row.appendChild(key);
-            counter++;
-        }
-        holder.appendChild(row);
+    if (val === 'C') {
+        disp.value = disp.value.slice(0, -1);
+        return;
     }
 
-    const enterBtn = document.createElement('button');
-    enterBtn.className = 'keypad-enter';
-    enterBtn.innerText = 'Dodaj';
-    enterBtn.onclick = () => keypadInputHandler('Dodaj');
-    holder.appendChild(enterBtn);
-
-    return holder;
-}
-
-function keypadInputHandler(value) {
-    const display = document.getElementById('input-field');
-    let currentVal = display.value;
-
-    if (value === 'Dodaj' || value === 'ENTER') {
-        const val = parseFloat(currentVal);
-        if (!isNaN(val) && !currentVal.endsWith('.')) {
-            measurements.push(val);
-            display.value = '';
+    if (val === 'ENTER') {
+        const v = parseFloat(disp.value);
+        if (!isNaN(v)) {
+            measurements.push(v);
+            disp.value = '';
             updateStats();
-            if (navigator.vibrate) navigator.vibrate(50);
+            if (navigator.vibrate) navigator.vibrate(40);
         }
         return;
     }
 
-    // Blokada nadmiarowego zera na początku
-    if (currentVal === '0' && value !== '.') {
-        display.value = value;
-        return;
-    }
-
-    // Obsługa kropki
-    if (value === '.') {
-        if (currentVal.includes('.')) return;
-        if (currentVal === "" || currentVal === "-") {
-            display.value += '0.';
-            return;
-        }
-    }
-
-    // Obsługa miejsc po przecinku (limit 4)
-    if (currentVal.includes('.')) {
-        const parts = currentVal.split('.');
-        if (parts[1] && parts[1].length >= 4 && value !== '-') return;
-    }
-
-    // Obsługa minusa (Toggle)
-    if (value === '-') {
-        if (currentVal.startsWith('-')) {
-            display.value = currentVal.slice(1);
+    if (val === '-') {
+        if (disp.value.startsWith('-')) {
+            disp.value = disp.value.slice(1);
         } else {
-            display.value = '-' + currentVal;
+            disp.value = '-' + disp.value;
         }
         return;
     }
 
-    display.value += value;
+    if (val === '.' && disp.value.includes('.')) return;
+    
+    if (disp.value.length < 10) {
+        disp.value += val;
+    }
 }
 
-// --- STATYSTYKI I SKANER ---
-function undoLast() {
-    measurements.pop();
-    updateStats();
+function colorMeasurment(value) {
+	const m = currentStation.master;
+	const t = currentStation.tol;
+	const d = Math.abs(value - m);
+	
+	if (d > t/2) return varColor('--danger')
+	else if (d > t*0.1) return '#FFD700'
+	else return null;
 }
 
 function updateStats() {
     const n = measurements.length;
+    document.getElementById('active-station-name').innerText = machineAndStation;
     document.getElementById('counter').innerText = `${n} / 50`;
-    const log = document.getElementById('history-log');
-    log.innerHTML = measurements.slice().reverse().map((v, i) => `[${n-i}] ${v.toFixed(4)}`).join('<br>');
-
-    if(n < 2) return;
-
-    const avg = measurements.reduce((a,b) => a+b, 0) / n;
-    const sqDiffs = measurements.map(v => Math.pow(v - avg, 2));
-    const std = Math.sqrt(sqDiffs.reduce((a,b) => a+b, 0) / (n - 1));
     
-    const cg = (0.2 * currentStation.tol) / (4 * std);
-    const cgk = (0.1 * currentStation.tol - Math.abs(avg - currentStation.master)) / (3 * std);
+    // Historia
+    const log = document.getElementById('history-log');
+    log.innerHTML = measurements.slice().reverse().map((v, i) => {
+					const color = colorMeasurment(v);
+					if (color)
+						return `<div class="hist-item" style="color: ${color}">${v.toFixed(3)}</div>`
+					else
+						return `<div class="hist-item" style="color: ${color}">${v.toFixed(3)}</div>`;
+				}).join('');
 
-    document.getElementById('val-avg').innerText = avg.toFixed(4);
-    document.getElementById('val-std').innerText = std.toFixed(6);
-    document.getElementById('val-cg').innerText = std === 0 ? "∞" : cg.toFixed(2);
-    document.getElementById('val-cgk').innerText = std === 0 ? "∞" : cgk.toFixed(2);
-    document.getElementById('box-cgk').style.background = cgk >= 1.33 ? "#1e4620" : "#461e1e";
-}
+    if(n >= 2) {
+        const avg = measurements.reduce((a,b)=>a+b,0)/n;
+        const std = Math.sqrt(measurements.map(x=>Math.pow(x-avg,2)).reduce((a,b)=>a+b,0)/(n-1));
+        
+        // Formuły z arkusza Sanden (0.2*RF / 4*Sg)
+        const cg = (0.2 * currentStation.tol) / (4 * std);
+        const cgk = (0.1 * currentStation.tol - Math.abs(currentStation.master - avg)) / (2 * std);
 
-// Skaner (skrócony dla przejrzystości)
-let videoStream = null;
-function startScanner() {
-    document.getElementById('scanner-view').classList.remove('hidden');
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then(s => {
-        videoStream = s;
-        document.getElementById('video').srcObject = s;
-        requestAnimationFrame(scanTick);
-    });
-}
-function stopScanner() {
-    if(videoStream) videoStream.getTracks().forEach(t => t.stop());
-    document.getElementById('scanner-view').classList.add('hidden');
-}
-function scanTick() {
-    const v = document.getElementById('video');
-    if(v.readyState === v.HAVE_ENOUGH_DATA) {
-        const canvas = document.getElementById('canvas');
-        canvas.width = v.videoWidth; canvas.height = v.videoHeight;
-        const ctx = canvas.getContext('2d'); ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
-        const code = jsQR(ctx.getImageData(0,0,canvas.width,canvas.height).data, canvas.width, canvas.height);
-        if(code) {
-            stopScanner();
-            if(katalogMaszyn[code.data]) selectMachine(code.data);
-            return;
-        }
+        document.getElementById('val-avg').innerText = avg.toFixed(3);
+        document.getElementById('val-cg').innerText = std === 0 ? "∞" : cg.toFixed(2);
+        document.getElementById('val-cgk').innerText = std === 0 ? "∞" : cgk.toFixed(2);
+
+        // Kolory pigułek
+        document.getElementById('ind-cg').className = `indicator ${cg >= 1.33 ? 'pass' : 'fail'}`;
+        document.getElementById('ind-cgk').className = `indicator ${cgk >= 1.33 ? 'pass' : 'fail'}`;
     }
-    if(!document.getElementById('scanner-view').classList.contains('hidden')) requestAnimationFrame(scanTick);
+
+    if(n >= 10) {
+        document.getElementById('keypad').classList.add('hidden');
+        document.getElementById('btn-final').classList.remove('hidden');
+    } else {
+        document.getElementById('keypad').classList.remove('hidden');
+        document.getElementById('btn-final').classList.add('hidden');
+    }
+    
+    drawChart();
 }
+
+
+function drawChart() {
+    const canvas = document.getElementById('chart_canva');
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width = canvas.offsetWidth;
+    const h = canvas.height = canvas.offsetHeight;
+    
+    ctx.clearRect(0, 0, w, h);
+    
+    const m = currentStation.master;
+    const t = currentStation.tol;
+    
+    // Skalowanie Y: Master na środku, +/- 1.2 * Tolerancja dla zapasu wizualnego
+    //const rangeY = t * 0.9;
+    // Wewnątrz drawChart():
+let minVal = Math.min(...measurements, m - t*0.1);
+let maxVal = Math.max(...measurements, m + t*0.1);
+let buffer = (maxVal - minVal) * 0.2; // Dodaj 20% marginesu
+
+const rangeY = (maxVal - minVal) + buffer;
+const midPoint = (maxVal + minVal) / 2;
+
+// Nowy yScale uwzględniający dynamiczny środek
+const yScale = (val) => h/2 - ((val - midPoint) / rangeY) * h;
+    //const yScale = (val) => h/2 - ((val - m) / rangeY) * (h/2);
+
+    // --- RYSOWANIE STREF (TŁA) ---
+    // 1. Strefa Czerwona (Tło domyślne canvasa, nic nie rysujemy)
+
+    // 2. Strefa Żółta (Obszar tolerancji technicznej)
+    ctx.fillStyle = 'rgba(255, 255, 0, 0.1)'; // Przezroczysty żółty
+    ctx.fillRect(0, yScale(m + t/2), w, yScale(m - t/2) - yScale(m + t/2));
+
+    // 3. Strefa Zielona (Wymaganie Cg > 1.33)
+    // Reguła: Cg > 1.33 oznacza, że 4*Std nie może przekraczać 20% Tolerancji (T/5)
+    // Pasek zielony to +/- 10% Tolerancji wokół Mastera
+    const greenZoneT = t * 0.1; 
+    ctx.fillStyle = 'rgba(0, 255, 0, 0.2)'; // Przezroczysty zielony
+    ctx.fillRect(0, yScale(m + greenZoneT), w, yScale(m - greenZoneT) - yScale(m + greenZoneT));
+
+
+    // --- RYSOWANIE LINII ---
+    // Linie tolerancji detalu (Czerwone)
+    ctx.strokeStyle = '#880000'; ctx.setLineDash([5, 5]); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, yScale(m + t/2)); ctx.lineTo(w, yScale(m + t/2)); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, yScale(m - t/2)); ctx.lineTo(w, yScale(m - t/2)); ctx.stroke();
+
+    // Linia Master (Zielona)
+    ctx.strokeStyle = varColor('--success'); ctx.setLineDash([]); ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(0, yScale(m)); ctx.lineTo(w, yScale(m)); ctx.stroke();
+
+
+    // --- RYSOWANIE PUNKTÓW (POMIARÓW) ---
+    ctx.fillStyle = varColor('--accent');
+    const xStep = w / 50;
+measurements.forEach((v, i) => {
+    const x = i * xStep + 5;
+    const y = yScale(v);
+    
+    const diff = Math.abs(v - m);
+    const greenZoneT = t * 0.1; // Ta sama logika co przy rysowaniu paska
+
+    if (diff > t/2) {
+        ctx.fillStyle = '#FF4444'; // Wyrazisty czerwony
+    } else if (diff > greenZoneT) {
+        ctx.fillStyle = '#FFD700'; // Wyrazisty złoty/żółty
+    } else {
+        ctx.fillStyle = '#FFFFFF'; // Biały - idealnie widoczny na zielonym tle
+    }
+    
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, 7); // Zwiększyłem promień z 3 na 4 dla lepszej widoczności
+    ctx.fill();
+    
+    // Opcjonalnie: obwódka wokół kropki, żeby nie "puchła" na tle
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+});
+    
+    
+    // Ustawienia czcionki dla etykiet
+ctx.fillStyle = "#888"; 
+ctx.font = "10px monospace";
+ctx.textAlign = "right";
+
+// Etykieta Górnej Tolerancji
+ctx.fillText((m + t/2).toFixed(3), w - 5, yScale(m + t/2) - 5);
+
+// Etykieta Mastera (wyróżniona)
+ctx.fillStyle = varColor('--success');
+ctx.fillText(m.toFixed(3), w - 5, yScale(m) - 5);
+
+// Etykieta Dolnej Tolerancji
+ctx.fillStyle = "#888";
+ctx.fillText((m - t/2).toFixed(3), w - 5, yScale(m - t/2) + 12);
+}
+
+function varColor(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+// Nawigacja
+function showStart() { document.querySelectorAll('body > div').forEach(d => d.classList.add('hidden')); document.getElementById('view-start').classList.remove('hidden'); }
+function showViewStation() { document.querySelectorAll('body > div').forEach(d => d.classList.add('hidden')); document.getElementById('view-station').classList.remove('hidden'); }
+
+function selectMachine(id) { 
+    currentMachine = katalogMaszyn[id]; 
+    let fullName = currentMachine.nazwa;
+    console.log(fullName);
+    const list = document.getElementById('stations-list');
+    list.innerHTML = '';
+    currentMachine.stacje.forEach(s => {
+        const b = document.createElement('button'); b.className = 'btn'; b.style.background = '#444';
+        b.innerText = s.nazwa; b.onclick = () => { machineAndStation = fullName + ' ' + s.nazwa; currentStation = s; measurements = []; updateStats(); document.getElementById('view-station').classList.add('hidden'); document.getElementById('view-measure').classList.remove('hidden'); };
+        list.appendChild(b);
+    });
+    document.getElementById('view-start').classList.add('hidden'); document.getElementById('view-station').classList.remove('hidden');
+}
+function undoLast() { measurements.pop(); updateStats(); }
 
 // Init
+initKeypad();
+showStart();
 const sel = document.getElementById('manual-select');
-for(let id in katalogMaszyn) {
-    const opt = document.createElement('option'); opt.value = id; opt.innerText = katalogMaszyn[id].nazwa;
-    sel.appendChild(opt);
-}
-function generateReport() { alert("Raport gotowy do wysyłki!"); }
+for(let id in katalogMaszyn) { const opt = document.createElement('option'); opt.value = id; opt.innerText = katalogMaszyn[id].nazwa; sel.appendChild(opt); }
 </script>
 </body>
 </html>
