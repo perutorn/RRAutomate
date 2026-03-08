@@ -124,82 +124,93 @@ let currentStation = null;
 let machineAndStation = '';
 let measurements = [];
 
-let videoStream = null;
-let scanning = false;
-
 async function startScanner() {
-    const video = document.getElementById('video');
+    lastResult = null;
+    stabilityCount = 0;
     const scannerView = document.getElementById('scanner-view');
-
+    scannerView.classList.remove('hidden');
+    
     try {
-        // Prośba o dostęp do aparatu (musi być HTTPS!)
-        videoStream = await navigator.mediaDevices.getUserMedia({ 
-            video: { facingMode: "environment" } 
+        // Idealne parametry dla kodów QR na hali (ostrość + jasność)
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { 
+                facingMode: "environment", 
+                width: { ideal: 1280 }, 
+                height: { ideal: 720 },
+                frameRate: { ideal: 30 }
+            } 
         });
         
-        video.srcObject = videoStream;
-        scannerView.classList.remove('hidden');
-        scanning = true;
+        videoStream = stream;
+        videoTrack = stream.getVideoTracks()[0];
+        const v = document.getElementById('video');
+        v.srcObject = stream;
         
-        // Rozpoczęcie analizy klatek obrazu
-        requestAnimationFrame(scanTick);
+        // Czekamy, aż wideo faktycznie ruszy przed skanowaniem
+        v.onloadedmetadata = () => {
+            v.play();
+            requestAnimationFrame(scanTick);
+        };
     } catch (err) {
-        alert("Błąd aparatu: " + err.message + "\nUpewnij się, że używasz HTTPS.");
-        console.error(err);
+        alert("Błąd kamery: " + err.message);
+        scannerView.classList.add('hidden');
     }
 }
 
 function scanTick() {
-    if (!scanning) return;
-    const video = document.getElementById('video');
+    const v = document.getElementById('video');
+    const scannerView = document.getElementById('scanner-view');
+    const reticle = document.getElementById('scanner-reticle');
+    
+    // Jeśli widok jest ukryty, przerywamy pętlę
+    if (scannerView.classList.contains('hidden')) return;
 
-    if (video.readyState === video.HAVE_ENOUGH_DATA) {
-        // Tworzymy tymczasowy canvas w pamięci o wymiarach klatki wideo
-        const canvas = document.createElement("canvas");
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (v.readyState === v.HAVE_ENOUGH_DATA) {
+        // Tworzymy bufor w pamięci (rozwiązuje problem braku elementu w HTML)
+        const canvas = document.createElement('canvas');
+        canvas.width = v.videoWidth;
+        canvas.height = v.videoHeight;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
         
-        // Rysujemy obecną klatkę z kamery na tym canvasie
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        
-        // Pobieramy surowe dane o pikselach (to jest to, czego potrzebuje jsQR)
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        
-        // Próba odczytu kodu
-        const code = jsQR(imageData.data, imageData.width, imageData.height, {
-            inversionAttempts: "dontInvert",
+        const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(img.data, img.width, img.height, {
+            inversionAttempts: "dontInvert", // Szybsze działanie
         });
-
+        
         if (code) {
-            console.log("Znaleziono kod:", code.data);
-            
-            // Logika dopasowania do Twojego katalogu maszyn
-            if (katalogMaszyn[code.data]) {
-                vibrateSuccess(); // Opcjonalna wibracja przy sukcesie
-                stopScanner();
-                selectMachine(code.data);
-                return; // Kończymy skanowanie po sukcesie
+            if (code.data === lastResult) {
+                stabilityCount++;
+                if (reticle) reticle.classList.add('scanning');
             } else {
-                // Jeśli kod jest poprawny, ale nie ma go w bazie
-                console.warn("Maszyna " + code.data + " nie istnieje w katalogu.");
+                lastResult = code.data;
+                stabilityCount = 1;
+                if (reticle) reticle.classList.remove('scanning');
             }
+
+            // Stabilizacja: kod musi być odczytany poprawnie 3 razy z rzędu
+            if (stabilityCount >= 3) { // 3 klatki to ok. 100ms
+                if (reticle) reticle.classList.add('success');
+                if (navigator.vibrate) navigator.vibrate(100);
+                
+                // Opóźnienie dla efektu wizualnego sukcesu
+                setTimeout(() => {
+                    stopScanner();
+                    if (katalogMaszyn[code.data]) {
+                        selectMachine(code.data);
+                    } else {
+                        alert("Maszyna " + code.data + " nie figuruje w katalogu.");
+                    }
+                }, 200);
+                return; // Sukces - wychodzimy z pętli
+            }
+        } else {
+            stabilityCount = 0;
+            if (reticle) reticle.classList.remove('scanning', 'success');
         }
     }
-    // Jeśli nie znaleziono kodu, prosimy o kolejną klatkę (pętla)
+    
     requestAnimationFrame(scanTick);
-}
-
-function vibrateSuccess() {
-    if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-}
-
-function stopScanner() {
-    scanning = false;
-    if (videoStream) {
-        videoStream.getTracks().forEach(track => track.stop());
-    }
-    document.getElementById('scanner-view').classList.add('hidden');
 }
 
 // Inicjalizacja Keypada
