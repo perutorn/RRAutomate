@@ -10,343 +10,913 @@
     <meta name="apple-mobile-web-app-title" content="R&R Automate">
     <title>R&R Automate</title>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-    <style>
-        :root { --bg: #121212; --card: #1e1e1e; --accent: #0078d7; --success: #28a745; --danger: #dc3545; --text: #eee;}
-        body { font-family: sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; overflow: hidden; height: 100dvh; display: flex; flex-direction: column; }
-        .hidden { display: none !important; }
+<style>
+    /* Zmienne i Reset */
+    :root {
+        --bg-color: #f0f2f5;
+        --text-color: #333333;
+        --text-muted: #666666;
+        --border-color: #dddddd;
+        --primary-color: #007bff;
+        --primary-text: #ffffff;
+        --secondary-color: #6c757d;
+        --secondary-text: #ffffff;
+        --card-bg: #ffffff;
+        --chart-bg: rgba(255, 0, 0, 0.1);
+        --btn-active-scale: 0.97;
+        --success-color: #28a745;
         
-        /* Ekran startowy */
-        .btn { background: var(--accent); color: white; border: none; padding: 15px; border-radius: 8px; width: 100%; font-size: 1.1rem; cursor: pointer; margin-bottom: 10px; }
-        .card { background: var(--card); padding: 15px; border-radius: 10px; border: 1px solid #333; }
+        --chart-warning-zone: rgba(255, 255, 0, 0.08);
+		--chart-success-zone: rgba(34, 197, 94, 0.15);
+		--chart-line-error: #ef4444;
+		--chart-line-success: #22c55e;
+		--chart-line-path: rgba(56, 189, 248, 0.4);
+		--chart-point-normal: #ffffff;
+		--chart-point-warning: #eab308;
+		--chart-point-error: #ef4444;
+		--chart-text: #94a3b8;
+		--chart-point-border: #000000;
+    }
 
-        /* Panel pomiarowy - Układ warstwowy */
-        .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
-        #counter { font-weight: bold; color: var(--accent); }
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --bg-color: #121212;
+            --text-color: #e0e0e0;
+            --text-muted: #aaaaaa;
+            --border-color: #333333;
+            --primary-color: #3f9eff;
+            --primary-text: #ffffff;
+            --secondary-color: #495057;
+            --secondary-text: #e0e0e0;
+            --card-bg: #1e1e1e;
+            --chart-bg: rgba(255, 80, 80, 0.15);
+            
+            --chart-warning-zone: rgba(234, 179, 8, 0.12);
+			--chart-success-zone: rgba(34, 197, 94, 0.2);
+			--chart-text: #64748b;
+			--chart-point-normal: #1e1e1e;
+			--chart-point-border: #ffffff;
+        }
+    }
 
-        /* Statystyki jako "Pigułki" */
-        .status-bar { display: flex; gap: 4px; margin-bottom: 5px; }
-        .indicator { flex: 1; padding: 4px; border-radius: 8px; text-align: center; background: #222; border: 1px solid #444; transition: 0.3s; }
-        .ind-label { font-size: 0.6rem; color: #888; display: block; text-transform: uppercase; }
-        .ind-val { font-size: 1rem; font-weight: bold; }
-        .pass { background: #1e4620 !important; border-color: var(--success) !important; }
-        .fail { background: #461e1e !important; border-color: var(--danger) !important; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
 
-        /* Wykres */
-        /* Wykres z półprzezroczystym tłem dla stref */
-		#chart_canva { width: 100%;  height: 30dvh; border-radius: 8px; border: 1px solid #333;  margin-bottom: 8px; background-color: rgba(255, 0, 0, 0.1); 
+    body { 
+        background-color: var(--bg-color); 
+        color: var(--text-color); 
+        height: 100dvh; 
+        overflow: hidden; 
+        transition: background-color 0.3s ease;
+    }
+    
+    main { height: 100%; width: 100%; position: relative; }
+
+    section {
+        display: none;
+        flex-direction: column;
+        padding: 20px;
+        height: 100%;
+        width: 100%;
+        overflow-y: auto;
+    }
+
+    section.active { display: flex; animation: fadeIn 0.2s ease-out; }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .header { margin-bottom: 20px; border-bottom: 2px solid var(--border-color); padding-bottom: 10px; }
+    
+    .header-compact {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding-bottom: 8px;
+        margin-bottom: 12px;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .header-title-area { flex: 1; min-width: 0; }
+    .title-mini { font-size: 1.1rem !important; margin: 0 !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    
+    .counter-badge {
+        background: var(--primary-color);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-weight: bold;
+        font-size: 0.9rem;
+    }
+
+    h2 { font-size: 1.4rem; margin: 10px 0; }
+    p.centered-label { text-align: center; margin: 15px 0; }
+
+    /* Przyciski */
+    .btn {
+        width: 100%;
+        min-height: 60px;
+        margin: 8px 0;
+        border: none;
+        border-radius: 12px;
+        font-size: 1.1rem;
+        font-weight: bold;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.1s, opacity 0.2s;
+    }
+    
+    /* Poprawiony selektor (dodana kropka) */
+    .btn-nav-mini {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        border: none;
+        background: var(--secondary-color);
+        color: var(--secondary-text);
+        font-size: 1.2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .btn-primary { background-color: var(--primary-color); color: var(--primary-text); }
+    .btn-secondary { background-color: var(--secondary-color); color: var(--secondary-text); }
+    .btn-outline { background: transparent; border: 2px solid var(--primary-color); color: var(--primary-color); }
+    .btn-success { background-color: var(--success-color); color: white; margin-top: 15px; }
+    .btn-back { width: auto; min-height: 40px; padding: 0 15px; font-size: 0.9rem; }
+    .btn-warning-leave{ border: 2px solid red; color: red;}
+    .btn-continue { border: 2px solid green; color: green; }
+    .btn.save-for-later { border 2px solid yellow; color: yellow; }
+    .btn:active { transform: scale(var(--btn-active-scale)); opacity: 0.9; }
+
+    .qr-placeholder {
+        flex: 1;
+        background: #000;
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+    }
+
+    /* Pomiary i Wskaźniki */
+    
+
+    .status-bar {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 5px;
+        background: #1a1a1a;
+        padding: 4px;
+        border-radius: 8px;
+        color: white;
+    }
+
+    .indicator { border-left: 3px solid #444; padding-left: 8px; }
+    .indicator.critical { border-left-color: #ff4444; }
+    .ind-label { font-size: 0.7rem; color: #aaa; display: block; text-transform: uppercase; }
+    .ind-val { font-weight: bold; font-size: 0.9rem; }
+
+    /* Klawiatura */
+    .keypad-holder {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+        margin-top: auto;
+    }
+
+    .key-btn {
+        min-height: 50px !important;
+        margin: 0 !important;
+        font-size: 1.2rem;
+        border-radius: 8px;
+    }
+
+    .key-clear { background: #444 !important; color: #ff4444 !important; border: none; }
+    .key-enter { grid-column: span 2; }
+
+    /* Inputy */
+    .input-container-rel {
+        position: relative;
+        width: 100%;
+        margin-bottom: 15px;
+    }
+
+    .input-display {
+        width: 100%;
+        height: 40px;
+        font-size: 1.4rem;
+        text-align: center;
+        border-radius: 12px;
+        border: 2px solid var(--border-color);
+        background: var(--card-bg);
+        color: var(--text-color);
+        padding-right: 60px;
+    }
+
+    .btn-undo-inline {
+        position: absolute;
+        right: 5px;
+        top: 5px;
+        bottom: 5px;
+        width: 50px;
+        border: none;
+        background: var(--secondary-color);
+        color: var(--secondary-text);
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 1.2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    select {
+        width: 100%;
+        height: 55px;
+        font-size: 1.1rem;
+        margin: 15px 0;
+        border-radius: 8px;
+        padding: 0 10px;
+        background-color: var(--card-bg);
+        color: var(--text-color);
+        border: 1px solid var(--border-color);
+    }
+
+
+    .hidden { display: none !important; }
+    .text-primary { color: var(--primary-color); font-weight: bold; }
+    .text-muted-sm { font-size: 0.7rem; color: var(--text-muted); display: block; }
+
+    /* Historia */
+    .history-container { margin: 5px 0 15px 0; }
+
+    .history-log-row {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        padding: 5px 0;
+        scrollbar-width: none;
+    }
+
+    .history-log-row::-webkit-scrollbar { display: none; }
+
+    .history-item {
+        background: var(--secondary-color);
+        color: var(--secondary-text);
+        padding: 4px 12px;
+        border-radius: 15px;
+        font-size: 0.9rem;
+        white-space: nowrap;
+        animation: slideIn 0.2s ease-out;
+    }
+
+    @keyframes slideIn {
+        from { opacity: 0; transform: scale(0.8); }
+        to { opacity: 1; transform: scale(1); }
+    }
+    
+    /* Kontener grupujący dolny panel sterowania */
+.control-panel {
+    margin-top: auto; /* Pycha panel na sam dół sekcji */
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-color);
 }
 
-        /* Historia pozioma */
-        /*.history-row { display: flex; gap: 6px; overflow-x: auto; padding: 4px 0; margin-bottom: 8px; font-family: monospace; } */
-        .hist-item { background: #333; padding: 4px 5px; border-radius: 15px; font-size: 0.85rem; flex-shrink: 0; border: 1px solid #444; }
-        
-        .history-row {background-color: rgba(255,255,255, 0.1); display: flex; gap: 6px; overflow-x: auto; padding: 10px 5px; margin-bottom: 8px;-webkit-overflow-scrolling: touch; min-height: 4dvh; align-items: center;}
-        /* Ukrycie paska przewijania (scrollbara), żeby nie szpecił */
-        .history-row::-webkit-scrollbar {display: none;}
-        .input-container { position: relative; margin-bottom: 10px; }
-        #input-field { width: 100%; padding: 15px; font-size: 1.4rem; background: #000; color: #00ff00; border: 2px solid var(--accent); border-radius: 10px; text-align: center; box-sizing: border-box; }
-        .btn-undo { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: #333; border: none; color: white; padding: 10px; border-radius: 6px; cursor: pointer; }
+/* Stała wysokość logu historii, by uniknąć przeskakiwania layoutu */
+.history-container {
+    margin: 0;
+    height: 52px; /* Stała wysokość: label + log-row */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
 
-        .keypad-holder { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; background: #1a1a1a; padding: 8px; margin-bottom: 20px; border-radius: 10px; flex-grow: 1; }
-        .key-btn { padding: 10px; font-size: 1.2rem; background: #333; color: white; border: none; border-radius: 6px; touch-action: manipulation; }
-        .key-btn:active { background: var(--accent); }
-        .key-enter { grid-column: span 3; background: var(--success); font-weight: bold; padding: 15px; }
+.history-log-row {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    min-height: 32px; /* Rezerwacja miejsca na same "pigułki" z wynikami */
+    padding: 2px 0;
+    align-items: center;
+}
 
-        /* Skaner */
-        #scanner-view { position: fixed; inset: 0; background: #000; z-index: 1000; }
-        video { width: 100%; height: 100%; object-fit: cover; }
-    </style>
+/* Dopasowanie marginesów inputu i klawiatury wewnątrz panelu */
+.input-container-rel {
+    margin-bottom: 8px;
+}
+
+.keypad-holder {
+    margin-top: 0;
+    padding-bottom: 5px;
+}
+
+.chart-and-indicators-area {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	flex-grow: 1;
+	justify-content: center;
+}
+
+#measurement-screen {
+	overflow: hidden;
+}
+
+.measurement-info-box {
+        margin-bottom: 15px;
+        background: var(--card-bg);
+        padding: 5px 10px;
+        border-radius: 4px;
+        border: 1px solid var(--border-color);
+        color: var(--text-color);
+        font-size: 0.7rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    #chart_canva {
+        width: 100% !important;
+        min-height: 100px !important;
+        max-height: 100%;
+        margin: 5px 0;
+        background-color: var(--chart-bg);
+        border-radius: 8px;
+        flex-grow: 1;
+    }
+    
+    
+    /* Zauważ: dodałem px do 350px, bez tego media query może nie zadziałać */
+@media (max-height: 700px) {
+	
+    .status-bar {
+        padding: 2px; /* Mniejszy margines wewnętrzny całego paska */
+        gap: 3px;     /* Mniejsze odstępy między wskaźnikami */
+    }
+
+     .indicator {
+        padding-left: 5px; /* Węższy pasek boczny (ten kolorowy) */
+    }
+
+     .ind-label {
+        font-size: 0.6rem; /* Jeszcze mniejszy napis pomocniczy */
+        line-height: 1;    /* Ściśnięcie linii tekstu */
+    }
+
+     .ind-val {
+        font-size: 0.75rem; /* Zmniejszenie samej wartości (np. Cg) */
+    }
+
+    /* Opcjonalnie: jeśli masz tam nagłówek sekcji, też go skompresuj */
+    .header-compact {
+        margin-bottom: 5px;
+        padding-bottom: 4px;
+    }
+    
+    .title-mini {
+        font-size: 0.9rem !important;
+    }
+    
+    .key-btn {
+		min-height: 40px !important;
+	}
+}
+
+.measurements-ind {
+	justify-content: center;
+	background-color: tranparent;
+	border: none;
+}
+
+.measurements-ind-fail {
+	border: 1px solid red;
+	color: red;
+}
+
+.measurements-ind-positive {
+	border: 1px solid green;
+	color: green;
+}
+
+
+</style>
 </head>
 <body>
 
-<div id="view-start">
-    <h2 style="text-align:center">R&R Automate</h2>
-    <button class="btn" onclick="startScanner()">SKANUJ KOD QR</button>
-    <div class="card">
-        <select id="manual-select" class="btn" style="background:#333" onchange="selectMachine(this.value)">
-            <option value="">-- Wybierz stację --</option>
-        </select>
-    </div>
-</div>
-
-<div id="view-station" class="hidden">
-    <button onclick="showStart()" style="color:var(--accent); background:none; border:none; padding:10px">← Powrót</button>
-    <h3 id="selected-machine-name">Maszyna</h3>
-    <div id="stations-list"></div>
-</div>
-
-<div id="view-measure" class="hidden">
-    <div class="header-row">
-		<button onclick="showViewStation()" style="color:var(--accent); background:none; border:none; padding:10px">← Powrót</button>
-        <span id="active-station-name" style="font-size: 0.7rem; color: #bbb;">Stacja</span>
-        <span id="counter">0 / 50</span>
-    </div>
-
-    <div class="status-bar">
-        <div class="indicator" id="ind-cg"><span class="ind-label">Cg (4σ)</span><span class="ind-val" id="val-cg">-</span></div>
-        <div class="indicator" id="ind-cgk"><span class="ind-label">Cgk</span><span class="ind-val" id="val-cgk">-</span></div>
-        <div class="indicator"><span class="ind-label">Średnia</span><span class="ind-val" id="val-avg" style="font-size: 0.9rem;">-</span></div>
-    </div>
-
-    <canvas id="chart_canva"></canvas>
-
-    <div class="history-row" id="history-log"></div>
-
-    <div class="input-container">
-        <input type="text" id="input-field" placeholder="0.000" readonly>
-        <button class="btn-undo" onclick="undoLast()">⟲</button>
-    </div>
-
-    <div class="keypad-holder" id="keypad">
-        </div>
+<main>
+    <section id="machine-select-screen" class="active">
+    <div class="header"><h2>Krok 1: Wybór Maszyny</h2></div>
+    <button class="btn btn-primary" onclick="navigateTo('qr-scanner-screen')">Skanuj kod QR</button>
     
-    <button id="btn-final" class="btn hidden" style="background: var(--success); margin-top: 10px;" onclick="generateReport()">ZAKOŃCZ I WYŚLIJ RAPORT</button>
-</div>
+    <p class="centered-label">Wybierz maszynę z listy:</p>
+    <div id="machine-buttons-container" class="sonda-grid">
+        </div>
+</section>
 
-<div id="scanner-view" class="hidden">
-    <video id="video" autoplay playsinline></video>
-    <button onclick="stopScanner()" style="position:absolute; bottom:30px; left:50%; transform:translateX(-50%); padding:15px; border-radius:10px;">ANULUJ</button>
-</div>
+    <section id="qr-scanner-screen">
+        <div class="header">
+            <button class="btn btn-secondary" onclick="navigateTo('machine-select-screen')">Anuluj</button>
+            <h2>Skanowanie QR</h2>
+        </div>
+        <div class="qr-placeholder">
+            [ Miejsce na obraz z kamery ]
+        </div>
+        <button class="btn btn-primary" onclick="handleMachineSelect('M001')" style="margin-top:20px;">Symuluj odczyt M001</button>
+    </section>
+
+    <section id="probe-select-screen">
+        <div class="header">
+            <button class="btn btn-secondary" onclick="navigateTo('machine-select-screen')">Wstecz</button>
+            <h2>Krok 2: Wybór sondy</h2>
+            <p id="current-machine-label" class="text-primary"></p>
+        </div>
+        <div id="probe-buttons-container" class="sonda-grid"></div>
+    </section>
+    
+    <section id="master-select-screen">
+        <div class="header">
+            <button class="btn btn-secondary btn-back" onclick="navigateTo('probe-select-screen')">
+                ← Wstecz
+            </button>
+            <h2>Krok 3: Wybór testu</h2>
+        </div>
+        <button class="btn btn-outline" onclick="handleMasterSelect('zero')">ZERO Master</button>
+        <button class="btn btn-outline" onclick="handleMasterSelect('span')">SPAN Master</button>
+        
+    </section>
+    
+    <section id="test-length-screen">
+		<div class="header">
+			<button class="btn btn-secondary btn-back" onclick="navigateTo('master-select-screen')">
+                ← Wstecz
+            </button>
+            <h2>Krok 4: Długość testu</h2>
+		</div>
+		<button class="btn btn-outline" onclick="handleTestLengthChoice(30)">SKRÓCONY - 30 pomiarów</button>
+        <button class="btn btn-outline" onclick="handleTestLengthChoice(50)">PEŁNY - 50 pomiarów</button>
+
+    </section>
+
+    <section id="measurement-screen">
+        <div class="header-compact">
+        <button class="btn-nav-mini" onclick="handleBackFromMeasurements()" title="Wstecz">←</button>
+        <div class="header-title-area">
+            <h2 id="measurement-title" class="title-mini">Sonda: --</h2>
+            <span id="active-station-name" class="text-muted-xs">Stacja</span>
+        </div>
+        <div class="header-counter-area">
+            <span id="counter" class="counter-badge">0/50</span>
+        </div>
+    </div>
+
+        <div class="status-bar">
+            <div id="ind-cg" class="indicator critical"> 
+                <span class="ind-label">C<sub>G</sub> (4σ)</span>
+                <span id="val-cg" class="ind-val">--</span>
+            </div>
+            <div id="ind-cgk" class="indicator critical">
+                <span class="ind-label">C<sub>GK</sub></span>
+                <span id="val-cgk" class="ind-val">--</span>
+            </div>
+            <div class="indicator">
+                <span class="ind-label">ŚREDNIA</span>
+                <span id="val-avg" class="ind-val">--</span>
+            </div>
+        </div>
+		
+		<div class="chart-and-indicators-area">
+			<canvas id="chart_canva"></canvas>
+			<div id="measurement-info" class="measurement-info-box"></div>
+		</div>
+		
+        <div class="control-panel">
+			<div class="history-container">
+				<span class="text-muted-sm">Ostatnie odczyty:</span>
+				<div id="history-log" class="history-log-row">
+					</div>
+			</div>
+
+			<div class="input-container-rel">
+				<input type="text" id="input-field" class="input-display" placeholder="0.000" readonly>
+				<button id="undo-btn" class="btn-undo-inline" onclick="undoLast()" title="Cofnij">⟲</button>
+			</div>
+
+			<div id="keypad" class="keypad-holder">
+				</div>
+
+		</div>
+        
+        <button id="btn-final" class="btn btn-success hidden" onclick="raportPage()">
+            ZAKOŃCZ I WYŚLIJ RAPORT
+        </button>
+    </section>
+    
+    <section id="confirm-leave-screen">
+		<div class="header">
+            <h2>Przerwać pomiary</h2>
+            <p id="confirm-minor-text" class="text-primary"></p>
+        </div>
+        <button class=" btn btn-outline btn-warning-leave" onclick="navigateTo('machine-select-screen')">Przerwij</button>
+        <button class="btn btn-outline btn-continue" onclick="navigateTo('measurement-screen')">Wróć do pomiarów</button>
+        <button class="btn btn-outline btn-save-for-later" onclick="saveForLater()">Zapisz i kontynuj później</button>
+        <button class="btn btn-ouliine btn-goto-raport-screen" onclick="navigateTo('raport-screen')"> Wyślij raport</button>
+    </section>
+    
+    <section id="raport-screen">
+		RAPORT
+    </section>
+    
+	<section id="saved-or-interrupted-session-screen">
+	</section>
+</main>
 
 <script>
-const katalogMaszyn = {
+    // TWOJE DANE
+    const katalogMaszyn = {
     "M001": {
-        nazwa: "A2-SUB-0020",
-        stacje: [
-            { id: "s1", nazwa: "Pin A height", tol: 0.6, master: 0.000 },
-            { id: "s2", nazwa: "Pin B height", tol: 1.0, master: 2.000 },
-            { id: "s3", nazwa: "Swash plate", tol: 0.05, master: 20.000 }
-        ]
+        nazwa: "RETURN SPRING SNR ASSY",
+        nr: "A2-SUB-0020",
+        sondy: {
+            "LF": { nazwa_cechy: "SWASH PLATE THICKNESS", zero: { rf: 0.02, graduation: 0.0001, master: 0 }, span: { rf: 0.02, graduation: 0.0001, master: 1.6 } },
+            "RF": { nazwa_cechy: "SWASH PLATE THICKNESS", zero: { rf: 0.02, graduation: 0.0001, master: 0 }, span: { rf: 0.02, graduation: 0.0001, master: 1.6 } },
+            "LB": { nazwa_cechy: "SWASH PLATE THICKNESS", zero: { rf: 0.02, graduation: 0.0001, master: 0 }, span: { rf: 0.02, graduation: 0.0001, master: 1.6 } },
+            "RB": { nazwa_cechy: "SWASH PLATE THICKNESS", zero: { rf: 0.02, graduation: 0.0001, master: 0 }, span: { rf: 0.02, graduation: 0.0001, master: 1.6 } },
+            "SNR": { nazwa_cechy: "SNR HEIGHT", zero: { rf: 0.6, graduation: 0.001, master: 0 }, span: { rf: 0.6, graduation: 0.001, master: 2.0 } },
+            "PinA": { nazwa_cechy: "PIN HEIGHT A", zero: { rf: 0.2, graduation: 0.001, master: 0 }, span: { rf: 0.2, graduation: 0.001, master: 1.5 } },
+            "PinB": { nazwa_cechy: "PIN HEIGHT B", zero: { rf: 0.2, graduation: 0.001, master: 0 }, span: { rf: 0.2, graduation: 0.001, master: 1.5 } }
+        }
     }
 };
 
-let currentStation = null;
-let machineAndStation = '';
-let measurements = [];
+    // STAN SESJI I ZMIENNE POMIAROWE
+    let currentSession = { machineId: null, probeId: null, masterType: null, testLength: 0 };
+    let session = {
+			machineID: null,
+			machineNr: null,
+			machineName: null, // Nazwa maszyny np A2-SUB-0020
+			probeID: null, 
+			probeName: null,   // Nazwa sondy np PIN A HEIGHT
+			masterType: null,	// ZERO / SPAN
+			masterParams: null, // obiekt z katalogMaszyn[id].sondy[probeID].zero/span
+			testLength: 0, // 30 / 50 powtórzeń
+			grad: 0, //ile cyfr znaczących po przecinku
+			measurements: [], // tablica pomiarów
+			idealMeasurements: [] //tablica do predykcji maksymalnego C_g, C_gk
+		}
+		
+		
+    let measurements = [];
+    let idealMeasurments = [];
 
-// --- SKANER (jsQR) ---
-let videoStream = null;
-function startScanner() {
-    document.getElementById('scanner-view').classList.remove('hidden');
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then(s => {
-        videoStream = s;
-        document.getElementById('video').srcObject = s;
-        requestAnimationFrame(scanTick);
-    });
+    // INICJALIZACJA
+    function init() {
+    const container = document.getElementById('machine-buttons-container');
+    container.innerHTML = ''; // Czyszczenie kontenera
+
+    for (let id in katalogMaszyn) {
+        const maszynData = katalogMaszyn[id];
+        const btn = document.createElement('button');
+        
+        // Używamy tych samych klas co w sondach dla zachowania stylu
+        btn.className = 'btn btn-outline sonda-btn'; 
+        
+        // Tworzymy strukturę: Numer maszyny (np. A2-SUB...) i pod spodem nazwa
+        btn.innerHTML = `
+            <span class="sonda-id">${maszynData.nr}</span>
+            <span class="sonda-desc">${maszynData.nazwa}</span>
+        `;
+        
+        btn.onclick = () => handleMachineSelect(id);
+        container.appendChild(btn);
+    }
+    
+    initKeypad();
 }
+    
+   function initKeypad() {
+		const kp = document.getElementById('keypad');
+		kp.innerHTML = ''; 
+		
+		const keys = ['1','2','3','4','5','6','7','8','9','-','0','.'];
 
-function stopScanner() {
-    if(videoStream) videoStream.getTracks().forEach(t => t.stop());
-    document.getElementById('scanner-view').classList.add('hidden');
-}
+		keys.forEach(k => {
+			const b = document.createElement('button');
+			// Dodajemy klasę key-btn, która ma mniejszą wysokość
+			b.className = 'btn btn-outline key-btn'; 
+			b.innerText = k;
+			b.onclick = () => handleInput(k);
+			kp.appendChild(b);
+		});
 
-function scanTick() {
-    const v = document.getElementById('video');
-    if(v.readyState === v.HAVE_ENOUGH_DATA) {
-        const canvas = document.getElementById('canvas');
-        canvas.width = v.videoWidth; canvas.height = v.videoHeight;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
-        const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(img.data, img.width, img.height);
-        if(code) {
-            stopScanner();
-            if(katalogMaszyn[code.data]) selectMachine(code.data);
-            else alert("Nieznana maszyna: " + code.data);
+		// Przycisk C
+		const cBtn = document.createElement('button');
+		cBtn.className = 'btn key-btn key-clear';
+		cBtn.innerText = 'C';
+		cBtn.onclick = () => handleInput('C');
+		kp.appendChild(cBtn);
+
+		// Przycisk ENTER
+		const ent = document.createElement('button');
+		ent.className = 'btn btn-primary key-btn key-enter';
+		ent.innerText = 'DODAJ POMIAR';
+		ent.onclick = () => handleInput('ENTER');
+		kp.appendChild(ent);
+	}
+
+    function handleInput(val) {
+        const disp = document.getElementById('input-field');
+        
+        if (val === 'C') { disp.value = disp.value.slice(0, -1); return; }
+        if (val === 'ENTER') {
+            const v = parseFloat(disp.value);
+            if (!isNaN(v)) {
+                session.measurements.push(v);
+                if(session.measurements.length <= 50 ){ session.idealMeasurements[session.measurements.length - 1] = v; }
+                disp.value = '';
+                updateStats(); // Wywołanie aktualizacji
+                if (navigator.vibrate) navigator.vibrate(40);
+            }
             return;
         }
-    }
-    if(!document.getElementById('scanner-view').classList.contains('hidden')) requestAnimationFrame(scanTick);
-}
-
-// Inicjalizacja Keypada
-function initKeypad() {
-    const kp = document.getElementById('keypad');
-    kp.innerHTML = ''; 
-    kp.style.display = 'grid';
-    kp.style.gridTemplateColumns = 'repeat(3, 1fr)';
-    kp.style.gap = '5px';
-    
-    // Standardowe klawisze
-    const keys = [
-        '1','2','3',
-        '4','5','6',
-        '7','8','9',
-        '-','0','.'
-    ];
-
-    keys.forEach(k => {
-        const b = document.createElement('button');
-        b.className = 'key-btn';
-        b.innerText = k;
-        b.onclick = () => handleInput(k);
-        kp.appendChild(b);
-    });
-
-    // Przycisk C (1 kolumna)
-    const cBtn = document.createElement('button');
-    cBtn.className = 'key-btn';
-    cBtn.innerText = 'C';
-    cBtn.style.background = '#444';
-    cBtn.style.color = '#ff4444';
-    cBtn.onclick = () => handleInput('C');
-    kp.appendChild(cBtn);
-
-    // Przycisk DODAJ (2 kolumny)
-    const ent = document.createElement('button');
-    ent.className = 'key-btn key-enter';
-    ent.innerText = 'DODAJ POMIAR';
-    ent.style.gridColumn = 'span 2'; 
-    ent.onclick = () => handleInput('ENTER');
-    kp.appendChild(ent);
-}
-
-function handleInput(val) {
-    const disp = document.getElementById('input-field');
-    
-    if (val === 'C') {
-        disp.value = disp.value.slice(0, -1);
-        return;
+        if (val === '-') {
+            disp.value = disp.value.startsWith('-') ? disp.value.slice(1) : '-' + disp.value;
+            return;
+        }
+        if (val === '.' && disp.value.includes('.')) return;
+        if (disp.value.length < 10) { disp.value += val; }
     }
 
-    if (val === 'ENTER') {
-        const v = parseFloat(disp.value);
-        if (!isNaN(v)) {
-            measurements.push(v);
-            disp.value = '';
+    function undoLast() {
+		let l = session.measurements.length;
+        if (l > 0) {
+            session.measurements.pop();
+            l -= 1;
+            session.idealMeasurements[l] = session.masterParams.master;
             updateStats();
-            if (navigator.vibrate) navigator.vibrate(40);
         }
-        return;
     }
 
-    if (val === '-') {
-        if (disp.value.startsWith('-')) {
-            disp.value = disp.value.slice(1);
-        } else {
-            disp.value = '-' + disp.value;
-        }
-        return;
+    // NAWIGACJA
+    function navigateTo(targetId) {
+        document.querySelectorAll("main > section").forEach(s => s.classList.remove('active'));
+        document.getElementById(targetId).classList.add('active');
     }
 
-    if (val === '.' && disp.value.includes('.')) return;
-    
-    if (disp.value.length < 10) {
-        disp.value += val;
-    }
-}
-
-function colorMeasurment(value) {
-	const m = currentStation.master;
-	const t = currentStation.tol;
-	const d = Math.abs(value - m);
-	
-	if (d > t/2) return varColor('--danger')
-	else if (d > t*0.1) return '#FFD700'
-	else return null;
-}
-
-function updateStats() {
-    const n = measurements.length;
-    document.getElementById('active-station-name').innerText = machineAndStation;
-    document.getElementById('counter').innerText = `${n} / 50`;
-    
-    // Historia
-    const log = document.getElementById('history-log');
-    log.innerHTML = measurements.slice().reverse().map((v, i) => {
-					const color = colorMeasurment(v);
-					if (color)
-						return `<div class="hist-item" style="color: ${color}">${v.toFixed(3)}</div>`
-					else
-						return `<div class="hist-item" style="color: ${color}">${v.toFixed(3)}</div>`;
-				}).join('');
-
-    if(n >= 2) {
-        const avg = measurements.reduce((a,b)=>a+b,0)/n;
-        const std = Math.sqrt(measurements.map(x=>Math.pow(x-avg,2)).reduce((a,b)=>a+b,0)/(n-1));
+    // OBSŁUGA WYBORÓW
+    function handleMachineSelect(id) {
+        if (!id) return;
+        currentSession.machineId = id;
         
-        // Formuły z arkusza Sanden (0.2*RF / 4*Sg)
-        const cg = (0.2 * currentStation.tol) / (4 * std);
-        const cgk = (0.1 * currentStation.tol - Math.abs(currentStation.master - avg)) / (2 * std);
-
-        document.getElementById('val-avg').innerText = avg.toFixed(3);
-        document.getElementById('val-cg').innerText = std === 0 ? "∞" : cg.toFixed(2);
-        document.getElementById('val-cgk').innerText = std === 0 ? "∞" : cgk.toFixed(2);
-
-        // Kolory pigułek
-        document.getElementById('ind-cg').className = `indicator ${cg >= 1.33 ? 'pass' : 'fail'}`;
-        document.getElementById('ind-cgk').className = `indicator ${cgk >= 1.33 ? 'pass' : 'fail'}`;
+        session.machineID = id;
+        session.machineName = katalogMaszyn[id].nazwa;
+        session.machineNr = katalogMaszyn[id].nr;
+        document.getElementById('current-machine-label').textContent = session.machineNr;
+        renderProbeButtons(id);
+        navigateTo('probe-select-screen');
     }
 
-    if(n >= 10) {
-        document.getElementById('keypad').classList.add('hidden');
-        document.getElementById('btn-final').classList.remove('hidden');
-    } else {
-        document.getElementById('keypad').classList.remove('hidden');
-        document.getElementById('btn-final').classList.add('hidden');
+    function renderProbeButtons(mId) {
+        const container = document.getElementById('probe-buttons-container');
+        container.innerHTML = '';
+        const sondy = katalogMaszyn[mId].sondy;
+
+        for (let sId in sondy) {
+            const btn = document.createElement('button');
+            btn.className = 'btn btn-outline sonda-btn';
+            btn.innerHTML = `<span class="sonda-id">${sId}</span><span class="sonda-desc">${sondy[sId].nazwa_cechy}</span>`;
+            btn.onclick = () => {
+                session.probeID = sId;
+                session.probeName = sondy[sId].nazwa_cechy;
+                navigateTo('master-select-screen');
+            };
+            container.appendChild(btn);
+        }
+    }
+
+    function handleMasterSelect(type) {
+        session.masterType = type;
+        session.masterParams = katalogMaszyn[session.machineID].sondy[session.probeID][type];
+        session.grad = getPrecision(session.masterParams.graduation);
+        
+        const m = session.masterParams.master;
+        const rf = session.masterParams.rf;
+        const g = session.masterParams.graduation;
+
+        document.getElementById('measurement-title').innerText = `Pomiar Sonda: ${session.probeID}`;
+        navigateTo('test-length-screen');
     }
     
-    drawChart();
-}
+    function handleTestLengthChoice(testLength) {
+		session.testLength = testLength;
+		prepareMeasurements();
+		updateStats();
+		navigateTo('measurement-screen');
+	}	
 
+    function sendReport() {
+        const { machineId, probeId, masterType } = session;
+        const mail = "serwis@firma.pl";
+        const subject = `Raport_${machineId}_${probeId}`;
+        const body = `Raport pomiarowy:%0D%0AMaszyna: ${machineId}%0D%0ASonda: ${probeId}%0D%0AMaster: ${masterType}%0D%0AIlość pomiarów: ${measurements.length}`;
+        window.location.href = `mailto:${mail}?subject=${subject}&body=${body}`;
+    }
+    
+    function calculateStats(data, nominal, tolerance) {
+		const n = data.length;
+		if (n < 2) return null;
+
+		const avg = data.reduce((a, b) => a + b, 0) / n;
+		const variance = data.map(x => Math.pow(x - avg, 2)).reduce((a, b) => a + b, 0) / (n - 1);
+		const std = Math.sqrt(variance);
+
+		const epsilon = session.masterParams.graduation / 10
+		if (std < epsilon ) return { avg, cg: 9.99, cgk: 9.99, std: 0 };
+
+		const cg = (0.2 * tolerance) / (4 * std);
+		const cgk = (0.1 * tolerance - Math.abs(nominal - avg)) / (2 * std);
+
+		return { avg, cg, cgk, std };
+	}
+
+	function getPrecision(graduation){
+		if (graduation >= 1) return 0;
+		const grad = graduation.toString().split('.');
+		return grad.length > 1? grad[1].length: 0;
+	}
+
+
+	function prepareMeasurements() {
+		if (session.masterParams) {
+			session.measurements = [];
+			session.idealMeasurements = new Array(session.testLength).fill(session.masterParams.master);
+		}
+	}
+		
+	function updateStats() {
+		
+		const n = session.measurements.length;
+		const m = session.masterParams.master;
+		const t = session.masterParams.rf; // Z katalogu maszyn rf traktujemy jako pole tolerancji
+		const l = session.testLength;
+		const f = session.grad;
+
+		// Aktualizacja nagłówków
+		document.getElementById('active-station-name').innerText = `${session.machineID} | ${session.probeID}`;
+		document.getElementById('counter').innerText = `${n} / ${l}`;
+		
+		const mInfo = document.getElementById('measurement-info');
+		
+		// Historia z kolorowaniem (naprawiony brakujący colorMeasurment)
+		const log = document.getElementById('history-log');
+		log.innerHTML = session.measurements.slice().reverse().map((v) => {
+			const diff = Math.abs(v - m);
+			let color = '#333';
+			if (diff > t/2) color = '#ef4444'; // Czerwony - poza tolerancją
+			else if (diff > (t * 0.1)) color = '#eab308'; // Żółty - ostrzeżenie
+			else color = '#22c55e'; // Zielony - w punkt
+
+			return `<div class="hist-item" style="color: ${color}; font-weight: bold; margin-bottom: 2px;">${v.toFixed(f)}</div>`;
+		}).join('');
+
+		// --- OBLICZENIA ---
+		const stats = calculateStats(session.measurements, m, t);
+		const ideal = calculateStats(session.idealMeasurements, m, t);
+
+		if (stats) {
+			document.getElementById('val-avg').innerText = stats.avg.toFixed(f);
+			document.getElementById('val-cg').innerText = stats.std === 0 ? "∞" : stats.cg.toFixed(2);
+			document.getElementById('val-cgk').innerText = stats.std === 0 ? "∞" : stats.cgk.toFixed(2);
+
+			// Kolory pigułek (zmieniamy kolor lewej krawędzi)
+			document.getElementById('ind-cg').style.borderLeftColor = stats.cg >= 1.33 ? '#28a745' : '#ff4444';
+			document.getElementById('ind-cgk').style.borderLeftColor = stats.cgk >= 1.33 ? '#28a745' : '#ff4444';
+		} else {
+			// Czyszczenie jeśli brak danych (np. po użyciu przycisku "Wstecz")
+			document.getElementById('val-avg').innerText = "--";
+			document.getElementById('val-cg').innerText = "--";
+			document.getElementById('val-cgk').innerText = "--";
+		}
+		
+		// Sufit (jeśli element istnieje)
+		if (ideal && mInfo && session.measurements.length > 1) {
+			const cg = ideal.cg.toFixed(2);
+			const cgk = ideal.cgk.toFixed(2);
+			
+			const cgClass = cg < 1.33? "measurements-ind measurements-ind-failed" : "measurements-ind measurements-ind-positive";
+			const cgkClass = cgk < 1.33? "measurements-ind measurements-ind-failed" : "measurements-ind measurements-ind-positive";
+
+			
+			mInfo.innerHTML = `
+				<div class="${cgClass}">Max C<sub>g</sub>: ${cg}</div>
+				<div class="${cgkClass}">Max C<sub>gk</sub>: ${cgk}</div>
+			`;
+		} else if (mInfo) {
+			mInfo.innerHTML = `<div class="measurements-ind">Oczekiwanie na dane...</div>`;
+		}
+		
+		
+		// Sterowanie widocznością interfejsu (blokada po 50 pomiarach)
+		const isFinished = n >= 6; // <- zmienic na session.testLength
+		document.getElementById('keypad').classList.toggle('hidden', isFinished);
+		document.getElementById('btn-final').classList.toggle('hidden', !isFinished);
+		
+		drawChart();
+	}
+	
+	function handleBackFromMeasurements() {
+		if (session.measurements.length > 5) {
+			navigateTo('confirm-leave-screen');
+		} else {
+			navigateTo('test-length-screen');
+		}
+	}
+
+/**
+ * Pobiera kolory zdefiniowane w CSS. 
+ * Robimy to RAZ na początku rysowania, by nie obciążać przeglądarki w pętlach.
+ */
+function getChartTheme() {
+    const s = getComputedStyle(document.documentElement);
+    return {
+        warningZone: s.getPropertyValue('--chart-warning-zone').trim(),
+        successZone: s.getPropertyValue('--chart-success-zone').trim(),
+        lineError:   s.getPropertyValue('--chart-line-error').trim(),
+        lineSuccess: s.getPropertyValue('--chart-line-success').trim(),
+        linePath:    s.getPropertyValue('--chart-line-path').trim(),
+        pointNormal: s.getPropertyValue('--chart-point-normal').trim(),
+        pointWarn:   s.getPropertyValue('--chart-point-warning').trim(),
+        pointError:  s.getPropertyValue('--chart-point-error').trim(),
+        textMuted:   s.getPropertyValue('--chart-text').trim(),
+        pointBorder: s.getPropertyValue('--chart-point-border').trim()
+    };
+}
 
 function drawChart(canvasId = 'chart_canva') {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
+    const theme = getChartTheme(); // Pobieramy paczkę kolorów
+    
     const w = canvas.width = canvas.offsetWidth;
-    const h = canvas.height = canvas.offsetHeight;
+    const h = canvas.height = canvas.offsetHeight || 150; 
     
     ctx.clearRect(0, 0, w, h);
-    if (!currentStation) return;
-
-    const m = currentStation.master;
-    const t = currentStation.tol;
     
-    // Obliczanie zakresu z uwzględnieniem Mastera i wszystkich pomiarów
-    let points = measurements.length > 0 ? measurements : [m];
-    let minVal = Math.min(...points, m - t * 0.5);
-    let maxVal = Math.max(...points, m + t * 0.5);
-    let buffer = (maxVal - minVal) * 0.2;
-
-    const rangeY = (maxVal - minVal) + (buffer || 0.01);
+    // Dane z sesji
+    const m = session.masterParams.master;
+    const t = session.masterParams.rf;
+    const measurements = session.measurements || [];
+    
+    const points = measurements.length > 0 ? measurements : [m];
+    const minVal = Math.min(...points, m - t * 0.5);
+    const maxVal = Math.max(...points, m + t * 0.5);
+    const rangeY = (maxVal - minVal) + ((maxVal - minVal) * 0.2 || 0.01);
     const midPoint = (maxVal + minVal) / 2;
 
     const yScale = (val) => h/2 - ((val - midPoint) / rangeY) * h;
     const xStep = w / 50;
+    const greenZoneT = t * 0.1;
 
-    // --- 1. RYSOWANIE STREF TŁA ---
-    // Żółta (Tolerancja)
-    ctx.fillStyle = 'rgba(255, 255, 0, 0.08)';
+    // --- 1. STREFY TŁA ---
+    ctx.fillStyle = theme.warningZone;
     ctx.fillRect(0, yScale(m + t/2), w, yScale(m - t/2) - yScale(m + t/2));
 
-    // Zielona (Cg/Cgk target zone)
-    const greenZoneT = t * 0.1; 
-    ctx.fillStyle = 'rgba(34, 197, 94, 0.15)';
+    ctx.fillStyle = theme.successZone;
     ctx.fillRect(0, yScale(m + greenZoneT), w, yScale(m - greenZoneT) - yScale(m + greenZoneT));
 
     // --- 2. LINIE REFERENCYJNE ---
     ctx.setLineDash([5, 5]);
-    ctx.strokeStyle = '#ef4444'; // Czerwone linie USL/LSL
-    ctx.beginPath(); ctx.moveTo(0, yScale(m+t/2)); ctx.lineTo(w, yScale(m+t/2)); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(0, yScale(m-t/2)); ctx.lineTo(w, yScale(m-t/2)); ctx.stroke();
+    ctx.strokeStyle = theme.lineError;
+    ctx.beginPath(); 
+    ctx.moveTo(0, yScale(m + t/2)); ctx.lineTo(w, yScale(m + t/2)); 
+    ctx.moveTo(0, yScale(m - t/2)); ctx.lineTo(w, yScale(m - t/2)); 
+    ctx.stroke();
 
     ctx.setLineDash([]);
-    ctx.strokeStyle = '#22c55e'; // Zielona linia Master
+    ctx.strokeStyle = theme.lineSuccess;
     ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(0, yScale(m)); ctx.lineTo(w, yScale(m)); ctx.stroke();
 
-    // --- 3. LINIA ŁĄCZĄCA PUNKTY (Run Chart) ---
+    // --- 3. LINIA ŁĄCZĄCA PUNKTY ---
     if (measurements.length > 1) {
-        ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)'; // Subtelny błękit
+        ctx.strokeStyle = theme.linePath;
         ctx.lineWidth = 1.5;
         ctx.beginPath();
         measurements.forEach((v, i) => {
             const x = i * xStep + 10;
             const y = yScale(v);
-            if (i === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
         });
         ctx.stroke();
     }
@@ -357,55 +927,267 @@ function drawChart(canvasId = 'chart_canva') {
         const y = yScale(v);
         const diff = Math.abs(v - m);
 
-        // Dynamiczny kolor kropki
-        if (diff > t/2) ctx.fillStyle = '#ef4444';      // Poza tolerancją
-        else if (diff > greenZoneT) ctx.fillStyle = '#eab308'; // Ostrzeżenie
-        else ctx.fillStyle = '#ffffff';                 // OK
+        if (diff > t/2) ctx.fillStyle = theme.pointError;      
+        else if (diff > greenZoneT) ctx.fillStyle = theme.pointWarn; 
+        else ctx.fillStyle = theme.pointNormal;                 
 
         ctx.beginPath();
         ctx.arc(x, y, 4, 0, Math.PI * 2);
         ctx.fill();
-        ctx.strokeStyle = '#000';
+        ctx.strokeStyle = theme.pointBorder;
         ctx.lineWidth = 1;
         ctx.stroke();
     });
 
-    // --- 5. ETYKIETY (TYLKO NA KOŃCU) ---
-    ctx.fillStyle = "#94a3b8";
-    ctx.font = "10px monospace";
+    // --- 5. ETYKIETY ---
+    ctx.font = "8px monospace";
     ctx.textAlign = "right";
+    ctx.fillStyle = theme.textMuted;
     ctx.fillText((m + t/2).toFixed(3), w - 5, yScale(m + t/2) - 5);
     ctx.fillText((m - t/2).toFixed(3), w - 5, yScale(m - t/2) + 12);
-    ctx.fillStyle = "#22c55e";
+    ctx.fillStyle = theme.lineSuccess;
     ctx.fillText("MASTER: " + m.toFixed(3), w - 5, yScale(m) - 5);
 }
-function varColor(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
 
-// Nawigacja
-function showStart() { document.querySelectorAll('body > div').forEach(d => d.classList.add('hidden')); document.getElementById('view-start').classList.remove('hidden'); }
-function showViewStation() { document.querySelectorAll('body > div').forEach(d => d.classList.add('hidden')); document.getElementById('view-station').classList.remove('hidden'); }
+function generateFullHTML() {
+    const stats = calculateStats(session.measurements, session.masterParams.master, session.masterParams.rf);
+    const f = session.grad;
 
-function selectMachine(id) { 
-    currentMachine = katalogMaszyn[id]; 
-    let fullName = currentMachine.nazwa;
-    console.log(fullName);
-    const list = document.getElementById('stations-list');
-    list.innerHTML = '';
-    currentMachine.stacje.forEach(s => {
-        const b = document.createElement('button'); b.className = 'btn'; b.style.background = '#444';
-        b.innerText = s.nazwa; b.onclick = () => { machineAndStation = fullName + ' ' + s.nazwa; currentStation = s; measurements = []; updateStats(); document.getElementById('view-station').classList.add('hidden'); document.getElementById('view-measure').classList.remove('hidden'); };
-        list.appendChild(b);
-    });
-    document.getElementById('view-start').classList.add('hidden'); document.getElementById('view-station').classList.remove('hidden');
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: sans-serif; color: #333; padding: 20px; max-width: 900px; margin: auto; }
+        .grid { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 20px; }
+        .card { max-width: 100%; flex: 1; border: 1px solid #eee; padding: 15px; border-radius: 8px; background: #fcfcfc; }
+        .chart-container { text-align: center; margin-top: 20px; border: 1px solid #eee; padding: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+        th { background: #f4f4f4; }
+        .status-pass { color: green; font-weight: bold; }
+        .status-fail { color: red; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Raport Metrologiczny SPA</h1>
+    <p>Maszyna: <strong>${session.machineNr}</strong> | Sonda: <strong>${session.probeID}</strong></p>
+    
+    <div class="grid">
+        <div class="card">
+            <h3>Statystyki</h3>
+            <p>Średnia: ${stats.avg.toFixed(f)}</p>
+            <p>Cg: ${stats.cg.toFixed(2)}</p>
+            <p>Cgk: ${stats.cgk.toFixed(2)}</p>
+            <p>Status: <span class="${stats.cgk >= 1.33 ? 'status-pass' : 'status-fail'}">
+                ${stats.cgk >= 1.33 ? 'ZATWIERDZONY' : 'ODRZUCONY'}
+            </span></p>
+        </div>
+        <div class="card">
+            <h3>Parametry Testu</h3>
+            <p>Master: ${session.masterParams.master.toFixed(f)}</p>
+            <p>Tolerancja: ${session.masterParams.rf.toFixed(f)}</p>
+            <p>Liczba prób: ${session.measurements.length} / ${session.testLength}</p>
+        </div>
+    </div>
+
+    <div class="chart-container">
+        <h3>Przebieg pomiarów w czasie</h3>
+        ${generateSVGChart()}
+    </div>
+
+    <div class="chart-container">
+        <h3>Histogram rozkładu</h3>
+        ${generateSVGHistogram()}
+    </div>
+
+    <table>
+        <thead>
+            <tr><th>Nr</th><th>Wartość</th></tr>
+        </thead>
+        <tbody>
+            ${session.measurements.map((m, i) => `<tr><td>${i+1}</td><td>${m.toFixed(f)}</td></tr>`).join('')}
+        </tbody>
+    </table>
+</body>
+</html>`;
 }
-function undoLast() { measurements.pop(); updateStats(); }
 
-// Init
-initKeypad();
-showStart();
-const sel = document.getElementById('manual-select');
-for(let id in katalogMaszyn) { const opt = document.createElement('option'); opt.value = id; opt.innerText = katalogMaszyn[id].nazwa; sel.appendChild(opt); }
+function generateSVGChart() {
+    const data = session.measurements;
+    const m = session.masterParams.master;
+    const t = session.masterParams.rf;
+    const w = 500; // szerokość obrazka
+    const h = 250; // wysokość obrazka
+    const padding = 40;
 
+    // Obliczamy zakres Y (żeby wykres był czytelny)
+    const minVal = Math.min(...data, m - t/2) - (t*0.1);
+    const maxVal = Math.max(...data, m + t/2) + (t*0.1);
+    const range = maxVal - minVal;
+
+    // Funkcje pomocnicze do skalowania
+    const getX = (i) => padding + (i / (session.testLength - 1)) * (w - 2 * padding);
+    const getY = (val) => h - padding - ((val - minVal) / range) * (h - 2 * padding);
+
+    let svg = `<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" style="background:#fff; font-family:sans-serif;">`;
+    
+    // 1. Tło i osie
+    svg += `<rect width="100%" height="100%" fill="#f8fafc"/>`;
+    
+    // 2. Linie tolerancji (Czerwone przerywane)
+    const topT = getY(m + t/2);
+    const botT = getY(m - t/2);
+    const masterY = getY(m);
+    
+    svg += `<line x1="${padding}" y1="${topT}" x2="${w-padding}" y2="${topT}" stroke="#ef4444" stroke-dasharray="5,5" />`;
+    svg += `<line x1="${padding}" y1="${botT}" x2="${w-padding}" y2="${botT}" stroke="#ef4444" stroke-dasharray="5,5" />`;
+    svg += `<line x1="${padding}" y1="${masterY}" x2="${w-padding}" y2="${masterY}" stroke="#22c55e" stroke-width="1" />`;
+
+    // 3. Rysowanie linii pomiarów
+    if (data.length > 1) {
+        let points = data.map((v, i) => `${getX(i)},${getY(v)}`).join(" ");
+        svg += `<polyline points="${points}" fill="none" stroke="#3b82f6" stroke-width="2" />`;
+    }
+
+    // 4. Punkty pomiarowe
+    data.forEach((v, i) => {
+        svg += `<circle cx="${getX(i)}" cy="${getY(v)}" r="3" fill="#1d4ed8" />`;
+    });
+
+    // 5. Etykiety tekstowe
+    svg += `<text x="${w-5}" y="${topT}" font-size="10" text-anchor="end" fill="#ef4444">TOL+</text>`;
+    svg += `<text x="${w-5}" y="${botT}" font-size="10" text-anchor="end" fill="#ef4444">TOL-</text>`;
+    svg += `<text x="5" y="${masterY}" font-size="10" fill="#22c55e">MASTER</text>`;
+
+    svg += `</svg>`;
+    return svg;
+}
+
+function generateSVGHistogram() {
+    const data = session.measurements;
+    const w = 400;
+    const h = 200;
+    const padding = 30;
+    const binsCount = 8;
+
+    const min = Math.min(...data);
+    const max = Math.max(...data);
+    const range = max - min || session.masterParams.graduation;
+    const bins = new Array(binsCount).fill(0);
+
+    data.forEach(v => {
+        let idx = Math.floor(((v - min) / range) * (binsCount - 1));
+        bins[idx]++;
+    });
+
+    const maxBin = Math.max(...bins);
+    const barW = (w - 2 * padding) / binsCount;
+
+    let svg = `<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" style="background:#fff;">`;
+    
+    bins.forEach((count, i) => {
+        const barH = maxBin > 0 ? (count / maxBin) * (h - 2 * padding) : 0;
+        const x = padding + i * barW;
+        const y = h - padding - barH;
+        
+        svg += `<rect x="${x + 2}" y="${y}" width="${barW - 4}" height="${barH}" fill="#94a3b8" stroke="#64748b" stroke-width="1"/>`;
+        svg += `<text x="${x + barW/2}" y="${h - 10}" font-size="8" text-anchor="middle" fill="#64748b">${(min + (i * range / (binsCount - 1))).toFixed(session.grad)}</text>`;
+    });
+
+    svg += `<line x1="${padding}" y1="${h-padding}" x2="${w-padding}" y2="${h-padding}" stroke="#333" />`;
+    svg += `</svg>`;
+    return svg;
+}
+
+function raportPage() {
+    const rs = document.getElementById('raport-screen');
+    const fullHtml = generateFullHTML(); // Pobierasz wygenerowany HTML
+
+    // 1. Tworzysz Bloba z zawartością HTML
+    const blob = new Blob([fullHtml], { type: 'text/html' });
+
+    // 2. Generujesz tymczasowy URL do tego Bloba
+    const blobUrl = URL.createObjectURL(blob);
+
+    rs.innerHTML = `
+        <div class="raport-controls" style="padding: 10px; display: flex; gap: 10px;">
+            <button onclick="navigateTo('measurement-screen')" class="btn">Powrót</button>
+            <button onclick="handleFinalizeAndShare()" class="btn btn-primary">Udostępnij raport</button>
+        </div>
+        <iframe src="${blobUrl}" style="width: 100%; height: 80vh; border: none;"></iframe>
+    `;
+
+    navigateTo('raport-screen');
+    
+    // Opcjonalnie: Zwolnij pamięć po zamknięciu raportu (ważne przy wielu raportach)
+    // URL.revokeObjectURL(blobUrl);
+}
+
+async function handleFinalizeAndShare() {
+    const fullHtml = generateFullHTML(); // Pobranie raportu
+    const fileName = `Raport_${session.machineID}_${session.probeID}.html`;
+    
+    // 1. Tworzymy Bloba i plik w pamięci
+    const blob = new Blob([fullHtml], { type: 'text/html' });
+    const file = new File([blob], fileName, { type: 'text/html' });
+
+    // 2. Sprawdzamy, czy przeglądarka wspiera udostępnianie plików (wymagane HTTPS)
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+            await navigator.share({
+                files: [file],
+                title: `Raport metrologiczny: ${session.machineID}`,
+                text: `Wynik dla sondy ${session.probeID}: Cgk = ${calculateStats(session.measurements, session.masterParams.master, session.masterParams.rf).cgk.toFixed(2)}`
+            });
+        } catch (err) {
+            console.error("Błąd udostępniania:", err);
+            alert("Nie udało się udostępnić pliku.");
+        }
+    } else {
+        // Fallback: jeśli Web Share nie działa, wymuś pobranie pliku
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = fileName;
+        link.click();
+        URL.revokeObjectURL(blobUrl);
+        alert("Twoja przeglądarka nie wspiera bezpośredniego udostępniania. Plik został pobrany.");
+    }
+}
+
+// --- AUTOMATYCZNE ODŚWIEŻANIE PRZY ZMIANIE TRYBU DARK/LIGHT ---
+const themeWatcher = window.matchMedia('(prefers-color-scheme: dark)');
+themeWatcher.addEventListener('change', () => drawChart());
+
+window.onload = init;
+    
+    // Obsługa klawiatury fizycznej
+window.addEventListener('keydown', (event) => {
+    const key = event.key.toUpperCase();
+
+    // 1. Cyfry, kropka i minus
+    if (/^[0-9.\-]$/.test(key)) {
+        handleInput(key);
+    } 
+    // 2. Enter -> DODAJ POMIAR
+    else if (key === 'Enter') {
+        event.preventDefault(); // Zapobiega np. wysłaniu formularza
+        handleInput('ENTER');
+    } 
+    // 3. Backspace -> funkcja C (usuwanie znaku)
+    else if (key === 'Backspace') {
+        handleInput('C');
+    }
+    // 4. Escape -> może służyć do czyszczenia całego pola (opcjonalnie)
+    else if (key === 'Escape') {
+        document.getElementById('input-field').value = '';
+    }
+    else if( key === 'U') {
+		undoLast();
+	}
+});
 
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
