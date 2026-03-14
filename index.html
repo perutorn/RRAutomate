@@ -10,7 +10,7 @@
     <meta name="apple-mobile-web-app-title" content="R&R Automate">
     <title>R&R Automate</title>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-<style>
+ <style>
     /* Zmienne i Reset */
     :root {
         --bg-color: #f0f2f5;
@@ -87,7 +87,7 @@
         to { opacity: 1; transform: translateY(0); }
     }
 
-    .header { margin-bottom: 20px; border-bottom: 2px solid var(--border-color); padding-bottom: 10px; }
+    section > header{ margin-bottom: 20px; border-bottom: 2px solid var(--border-color); padding-bottom: 10px; }
     
     .header-compact {
         display: flex;
@@ -415,7 +415,7 @@
 
 <main>
     <section id="machine-select-screen" class="active">
-    <div class="header"><h2>Krok 1: Wybór Maszyny</h2></div>
+    <header><h2>Krok 1: Wybór Maszyny</h2></header>
     <button class="btn btn-primary" onclick="navigateTo('qr-scanner-screen')">Skanuj kod QR</button>
     
     <p class="centered-label">Wybierz maszynę z listy:</p>
@@ -424,10 +424,10 @@
 </section>
 
     <section id="qr-scanner-screen">
-        <div class="header">
+        <header>
             <button class="btn btn-secondary" onclick="navigateTo('machine-select-screen')">Anuluj</button>
             <h2>Skanowanie QR</h2>
-        </div>
+        </header>
         <div class="qr-placeholder">
             [ Miejsce na obraz z kamery ]
         </div>
@@ -435,40 +435,40 @@
     </section>
 
     <section id="probe-select-screen">
-        <div class="header">
+        <header>
             <button class="btn btn-secondary" onclick="navigateTo('machine-select-screen')">Wstecz</button>
             <h2>Krok 2: Wybór sondy</h2>
             <p id="current-machine-label" class="text-primary"></p>
-        </div>
+        </header>
         <div id="probe-buttons-container" class="sonda-grid"></div>
     </section>
     
     <section id="master-select-screen">
-        <div class="header">
+        <header>
             <button class="btn btn-secondary btn-back" onclick="navigateTo('probe-select-screen')">
                 ← Wstecz
             </button>
             <h2>Krok 3: Wybór testu</h2>
-        </div>
+        </header>
         <button class="btn btn-outline" onclick="handleMasterSelect('zero')">ZERO Master</button>
         <button class="btn btn-outline" onclick="handleMasterSelect('span')">SPAN Master</button>
         
     </section>
     
     <section id="test-length-screen">
-		<div class="header">
+		<header>
 			<button class="btn btn-secondary btn-back" onclick="navigateTo('master-select-screen')">
                 ← Wstecz
             </button>
             <h2>Krok 4: Długość testu</h2>
-		</div>
+		</header>
 		<button class="btn btn-outline" onclick="handleTestLengthChoice(30)">SKRÓCONY - 30 pomiarów</button>
         <button class="btn btn-outline" onclick="handleTestLengthChoice(50)">PEŁNY - 50 pomiarów</button>
 
     </section>
 
     <section id="measurement-screen">
-        <div class="header-compact">
+        <header class="header-compact">
         <button class="btn-nav-mini" onclick="handleBackFromMeasurements()" title="Wstecz">←</button>
         <div class="header-title-area">
             <h2 id="measurement-title" class="title-mini">Sonda: --</h2>
@@ -477,7 +477,7 @@
         <div class="header-counter-area">
             <span id="counter" class="counter-badge">0/50</span>
         </div>
-    </div>
+    </header>
 
         <div class="status-bar">
             <div id="ind-cg" class="indicator critical"> 
@@ -522,21 +522,29 @@
     </section>
     
     <section id="confirm-leave-screen">
-		<div class="header">
+		<header>
             <h2>Przerwać pomiary</h2>
             <p id="confirm-minor-text" class="text-primary"></p>
-        </div>
-        <button class=" btn btn-outline btn-warning-leave" onclick="navigateTo('machine-select-screen')">Przerwij</button>
-        <button class="btn btn-outline btn-continue" onclick="navigateTo('measurement-screen')">Wróć do pomiarów</button>
-        <button class="btn btn-outline btn-save-for-later" onclick="saveForLater()">Zapisz i kontynuj później</button>
-        <button class="btn btn-ouliine btn-goto-raport-screen" onclick="navigateTo('raport-screen')"> Wyślij raport</button>
+        </header>
+        <footer>
+			<button class=" btn btn-outline btn-warning-leave" onclick="navigateTo('machine-select-screen')">Przerwij</button>
+			<button class="btn btn-outline btn-continue" onclick="navigateTo('measurement-screen')">Wróć do pomiarów</button>
+			<button class="btn btn-outline btn-save-for-later" onclick="saveForLater()">Zapisz i kontynuj później</button>
+			<button class="btn btn-ouliine btn-goto-raport-screen" onclick="navigateTo('raport-screen')"> Wyślij raport</button>
+		</footer>
     </section>
     
+    
     <section id="raport-screen">
-		RAPORT
+		
     </section>
     
 	<section id="saved-or-interrupted-session-screen">
+		<header><h2>Zapisana sesja pomiarowa</h2></header>
+		<footer>
+			<button class="btn btn-outline" onclick="resumeSavedSession()">Wznów</button>
+			<button class="btn btn-outline" onclick="resumeSavedSession()">Rozpocznij nową sesje</button>
+		</footer>
 	</section>
 </main>
 
@@ -580,28 +588,27 @@
 
     // INICJALIZACJA
     function init() {
-    const container = document.getElementById('machine-buttons-container');
-    container.innerHTML = ''; // Czyszczenie kontenera
+		const container = document.getElementById('machine-buttons-container');
+		container.innerHTML = ''; // Czyszczenie kontenera
 
-    for (let id in katalogMaszyn) {
-        const maszynData = katalogMaszyn[id];
-        const btn = document.createElement('button');
-        
-        // Używamy tych samych klas co w sondach dla zachowania stylu
-        btn.className = 'btn btn-outline sonda-btn'; 
-        
-        // Tworzymy strukturę: Numer maszyny (np. A2-SUB...) i pod spodem nazwa
-        btn.innerHTML = `
-            <span class="sonda-id">${maszynData.nr}</span>
-            <span class="sonda-desc">${maszynData.nazwa}</span>
-        `;
-        
-        btn.onclick = () => handleMachineSelect(id);
-        container.appendChild(btn);
-    }
-    
-    initKeypad();
-}
+		for (let id in katalogMaszyn) {
+			const maszynData = katalogMaszyn[id];
+			const btn = document.createElement('button');
+			
+			// Używamy tych samych klas co w sondach dla zachowania stylu
+			btn.className = 'btn btn-outline sonda-btn'; 
+			
+			// Tworzymy strukturę: Numer maszyny (np. A2-SUB...) i pod spodem nazwa
+			btn.innerHTML = `
+				<span class="sonda-id">${maszynData.nr}</span>
+				<span class="sonda-desc">${maszynData.nazwa}</span>
+			`;
+			
+			btn.onclick = () => handleMachineSelect(id);
+			container.appendChild(btn);
+		}
+		initKeypad();
+	}
     
    function initKeypad() {
 		const kp = document.getElementById('keypad');
@@ -667,10 +674,40 @@
     }
 
     // NAWIGACJA
-    function navigateTo(targetId) {
-        document.querySelectorAll("main > section").forEach(s => s.classList.remove('active'));
-        document.getElementById(targetId).classList.add('active');
-    }
+   function navigateTo(targetId) {
+
+		const target = document.getElementById(targetId);
+
+		// jeśli sekcja nie istnieje
+		if (!target) {
+			console.error(`Sekcja o ID "${targetId}" nie istnieje!`);
+			document.getElementById('machine-select-screen')?.classList.add('active');
+			return;
+		}
+
+		// usuń aktywność z obecnej sekcji
+		document.querySelectorAll("main > section.active")
+			.forEach(s => s.classList.remove('active'));
+
+		// aktywuj docelową sekcję
+		target.classList.add('active');
+
+	}
+    
+    
+	function resetAppToStart() {
+		// 1. Czyścimy dane obecnej sesji, aby powrót nie wczytał starych wyników
+		session.measurements = [];
+		session.machineID = null;
+		session.probeID = null;
+
+		// 2. Zamiast dodawać nowy wpis do historii, nadpisujemy obecny (confirm-leave-screen) 
+		// ekranem wyboru maszyny. Dzięki temu "Wstecz" nie wróci już do pomiarów.
+		history.replaceState({ sectionId: 'machine-select-screen' }, "", "#home");
+
+		// 3. Przełączamy widok
+		navigateTo('machine-select-screen', true);
+	}
 
     // OBSŁUGA WYBORÓW
     function handleMachineSelect(id) {
@@ -722,14 +759,6 @@
 		updateStats();
 		navigateTo('measurement-screen');
 	}	
-
-    function sendReport() {
-        const { machineId, probeId, masterType } = session;
-        const mail = "serwis@firma.pl";
-        const subject = `Raport_${machineId}_${probeId}`;
-        const body = `Raport pomiarowy:%0D%0AMaszyna: ${machineId}%0D%0ASonda: ${probeId}%0D%0AMaster: ${masterType}%0D%0AIlość pomiarów: ${measurements.length}`;
-        window.location.href = `mailto:${mail}?subject=${subject}&body=${body}`;
-    }
     
     function calculateStats(data, nominal, tolerance) {
 		const n = data.length;
@@ -753,7 +782,6 @@
 		const grad = graduation.toString().split('.');
 		return grad.length > 1? grad[1].length: 0;
 	}
-
 
 	function prepareMeasurements() {
 		if (session.masterParams) {
@@ -1126,34 +1154,37 @@ function raportPage() {
 }
 
 async function handleFinalizeAndShare() {
-    const fullHtml = generateFullHTML(); // Pobranie raportu
-    const fileName = `Raport_${session.machineID}_${session.probeID}.html`;
-    
-    // 1. Tworzymy Bloba i plik w pamięci
-    const blob = new Blob([fullHtml], { type: 'text/html' });
-    const file = new File([blob], fileName, { type: 'text/html' });
+    const reportHtml = generateFullHTML();
+    const blob = new Blob([reportHtml], { type: 'text/html' });
+    const fileName = `Raport_${session.machineNr}_${new Date().toISOString().slice(0,10)}.html`;
 
-    // 2. Sprawdzamy, czy przeglądarka wspiera udostępnianie plików (wymagane HTTPS)
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    // KROK 1: Zapis na dysk (Plan B)
+    // To dzieje się lokalnie, nie wymaga internetu.
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = fileName;
+    link.click();
+    URL.revokeObjectURL(link.href);
+
+    // KROK 2: Udostępnianie (Plan A)
+    // Mała pauza, żeby system "przetrawił" pobieranie
+    await new Promise(r => setTimeout(r, 500));
+
+    if (navigator.share) {
+        const file = new File([blob], fileName, { type: 'text/html' });
         try {
             await navigator.share({
                 files: [file],
-                title: `Raport metrologiczny: ${session.machineID}`,
-                text: `Wynik dla sondy ${session.probeID}: Cgk = ${calculateStats(session.measurements, session.masterParams.master, session.masterParams.rf).cgk.toFixed(2)}`
+                title: 'Raport SPA',
+                text: `Przesyłam raport dla maszyny: ${session.machineNr}`
             });
+            // Jeśli tu dotarliśmy, okno share się otworzyło.
+            // Możemy teraz wyświetlić prosty komunikat:
+            alert("Raport zapisano na urządzeniu i wywołano menu wysyłki.");
         } catch (err) {
-            console.error("Błąd udostępniania:", err);
-            alert("Nie udało się udostępnić pliku.");
+            // Jeśli użytkownik anulował share, plik i tak już jest na dysku (z kroku 1)
+            console.log("Share anulowany, ale plik pobrany.");
         }
-    } else {
-        // Fallback: jeśli Web Share nie działa, wymuś pobranie pliku
-        const blobUrl = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = fileName;
-        link.click();
-        URL.revokeObjectURL(blobUrl);
-        alert("Twoja przeglądarka nie wspiera bezpośredniego udostępniania. Plik został pobrany.");
     }
 }
 
