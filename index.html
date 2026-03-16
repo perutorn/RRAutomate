@@ -10,7 +10,7 @@
     <meta name="apple-mobile-web-app-title" content="R&R Automate">
     <title>R&R Automate</title>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
- <style>
+<style>
     /* Zmienne i Reset */
     :root {
         --bg-color: #f0f2f5;
@@ -400,12 +400,14 @@
 
 .measurements-ind-fail {
 	border: 1px solid red;
-	color: red;
+	color: white;
+	background-color: red;
 }
 
 .measurements-ind-positive {
 	border: 1px solid green;
-	color: green;
+	color: white;
+	background-color:green;
 }
 
 
@@ -416,7 +418,7 @@
 <main>
     <section id="machine-select-screen" class="active">
     <header><h2>Krok 1: Wybór Maszyny</h2></header>
-    <button class="btn btn-primary" onclick="navigateTo('qr-scanner-screen')">Skanuj kod QR</button>
+    <button class="btn btn-primary" onclick="router.goTo('qr-scanner-screen')">Skanuj kod QR</button>
     
     <p class="centered-label">Wybierz maszynę z listy:</p>
     <div id="machine-buttons-container" class="sonda-grid">
@@ -425,7 +427,7 @@
 
     <section id="qr-scanner-screen">
         <header>
-            <button class="btn btn-secondary" onclick="navigateTo('machine-select-screen')">Anuluj</button>
+            <button class="btn btn-secondary" onclick="router.goTo('machine-select-screen')">Anuluj</button>
             <h2>Skanowanie QR</h2>
         </header>
         <div class="qr-placeholder">
@@ -436,7 +438,7 @@
 
     <section id="probe-select-screen">
         <header>
-            <button class="btn btn-secondary" onclick="navigateTo('machine-select-screen')">Wstecz</button>
+            <button class="btn btn-secondary" onclick="router.goTo('machine-select-screen')">Wstecz</button>
             <h2>Krok 2: Wybór sondy</h2>
             <p id="current-machine-label" class="text-primary"></p>
         </header>
@@ -445,7 +447,7 @@
     
     <section id="master-select-screen">
         <header>
-            <button class="btn btn-secondary btn-back" onclick="navigateTo('probe-select-screen')">
+            <button class="btn btn-secondary btn-back" onclick="router.goTo('probe-select-screen')">
                 ← Wstecz
             </button>
             <h2>Krok 3: Wybór testu</h2>
@@ -457,7 +459,7 @@
     
     <section id="test-length-screen">
 		<header>
-			<button class="btn btn-secondary btn-back" onclick="navigateTo('master-select-screen')">
+			<button class="btn btn-secondary btn-back" onclick="router.goTo('master-select-screen')">
                 ← Wstecz
             </button>
             <h2>Krok 4: Długość testu</h2>
@@ -469,7 +471,7 @@
 
     <section id="measurement-screen">
         <header class="header-compact">
-        <button class="btn-nav-mini" onclick="handleBackFromMeasurements()" title="Wstecz">←</button>
+        <button class="btn-nav-mini" onclick="history.back()" title="Wstecz">←</button>
         <div class="header-title-area">
             <h2 id="measurement-title" class="title-mini">Sonda: --</h2>
             <span id="active-station-name" class="text-muted-xs">Stacja</span>
@@ -506,14 +508,12 @@
 					</div>
 			</div>
 
-			<div class="input-container-rel">
+			<div id="input-container" class="input-container-rel">
 				<input type="text" id="input-field" class="input-display" placeholder="0.000" readonly>
 				<button id="undo-btn" class="btn-undo-inline" onclick="undoLast()" title="Cofnij">⟲</button>
 			</div>
 
-			<div id="keypad" class="keypad-holder">
-				</div>
-
+			<div id="keypad" class="keypad-holder"></div>
 		</div>
         
         <button id="btn-final" class="btn btn-success hidden" onclick="raportPage()">
@@ -523,33 +523,41 @@
     
     <section id="confirm-leave-screen">
 		<header>
-            <h2>Przerwać pomiary</h2>
-            <p id="confirm-minor-text" class="text-primary"></p>
+            <h2>Przerwać pomiary?</h2>
         </header>
         <footer>
-			<button class=" btn btn-outline btn-warning-leave" onclick="navigateTo('machine-select-screen')">Przerwij</button>
-			<button class="btn btn-outline btn-continue" onclick="navigateTo('measurement-screen')">Wróć do pomiarów</button>
-			<button class="btn btn-outline btn-save-for-later" onclick="saveForLater()">Zapisz i kontynuj później</button>
-			<button class="btn btn-ouliine btn-goto-raport-screen" onclick="navigateTo('raport-screen')"> Wyślij raport</button>
+			<button class="btn btn-outline btn-warning-leave" onclick="resetAppToStart()">Przerwij</button>
+			<button class="btn btn-outline btn-continue" onclick="router.goBack()">Wróć do pomiarów</button>
+			<button class="btn btn-outline btn-save-for-later" onclick="closeApp(true)">Zapisz i kontynuuj później</button>
+			<button class="btn btn-outline" onclick="raportPage()">Wyślij raport</button>
 		</footer>
     </section>
     
-    
     <section id="raport-screen">
-		
+		<header>
+			<h2>Raport</h2>
+			<button onclick="router.goTo('measurement-screen')" class="btn btn-secondary btn-back">Powrót</button>
+            <button onclick="handleFinalizeAndShare()" class="btn btn-primary">Udostępnij raport</button>
+		</header>
+		<div id="report-host" style="height: calc(100% - 70px); overflow-y: auto; padding: 10px;"></div>
     </section>
     
 	<section id="saved-or-interrupted-session-screen">
-		<header><h2>Zapisana sesja pomiarowa</h2></header>
+		<header>
+			<h2>Zapisana sesja pomiarowa</h2>
+			<h3 id="resume-screen-info"></h3>
+		</header>
 		<footer>
 			<button class="btn btn-outline" onclick="resumeSavedSession()">Wznów</button>
-			<button class="btn btn-outline" onclick="resumeSavedSession()">Rozpocznij nową sesje</button>
+			<button class="btn btn-outline" onclick="clearOldSession()">Rozpocznij nową sesje</button>
 		</footer>
-	</section>
+	</section> 
 </main>
 
 <script>
     // TWOJE DANE
+    const LOCALSTORAGE_KEY = 'randr-session';
+    
     const katalogMaszyn = {
     "M001": {
         nazwa: "RETURN SPRING SNR ASSY",
@@ -569,6 +577,7 @@
     // STAN SESJI I ZMIENNE POMIAROWE
     let currentSession = { machineId: null, probeId: null, masterType: null, testLength: 0 };
     let session = {
+			date: null,   //data
 			machineID: null,
 			machineNr: null,
 			machineName: null, // Nazwa maszyny np A2-SUB-0020
@@ -588,27 +597,73 @@
 
     // INICJALIZACJA
     function init() {
-		const container = document.getElementById('machine-buttons-container');
-		container.innerHTML = ''; // Czyszczenie kontenera
+    const savedData = localStorage.getItem(LOCALSTORAGE_KEY);
+    
+    if (savedData) {
+        try {
+            const parsed = JSON.parse(savedData);
+            // Sprawdzamy, czy sesja ma minimalne dane (np. numer maszyny i przynajmniej jeden pomiar)
+            if (parsed && parsed.machineNr && parsed.measurements.length > 0) {
+                // Wyświetlamy info na ekranie wznawiania
+                const dateInfo = parsed.date ? new Date(parsed.date).toLocaleString() : 'Nieznana data';
+                document.getElementById('resume-screen-info').innerHTML = 
+                    `Maszyna: ${parsed.machineNr}<br>Sonda: ${parsed.probeID}<br>Pomiary: ${parsed.measurements.length}/${parsed.testLength}<br><small>Zapisano: ${dateInfo}</small>`;
+                
+                router.goTo('saved-or-interrupted-session-screen');
+                return; // Zatrzymujemy init, czekamy na decyzję operatora
+            }
+        } catch (e) {
+            console.error("Błąd parsowania sesji", e);
+            localStorage.removeItem(LOCALSTORAGE_KEY);
+        }
+    }
 
-		for (let id in katalogMaszyn) {
-			const maszynData = katalogMaszyn[id];
-			const btn = document.createElement('button');
-			
-			// Używamy tych samych klas co w sondach dla zachowania stylu
-			btn.className = 'btn btn-outline sonda-btn'; 
-			
-			// Tworzymy strukturę: Numer maszyny (np. A2-SUB...) i pod spodem nazwa
-			btn.innerHTML = `
-				<span class="sonda-id">${maszynData.nr}</span>
-				<span class="sonda-desc">${maszynData.nazwa}</span>
-			`;
-			
-			btn.onclick = () => handleMachineSelect(id);
-			container.appendChild(btn);
-		}
-		initKeypad();
-	}
+    // Jeśli brak sesji, inicjujemy standardowy start
+    renderMachineButtons();
+    initKeypad();
+    router.init();
+}
+
+// Wyciągamy renderowanie przycisków do osobnej funkcji, by móc ją wywołać po resecie
+function renderMachineButtons() {
+    const container = document.getElementById('machine-buttons-container');
+    container.innerHTML = '';
+    for (let id in katalogMaszyn) {
+        const maszynData = katalogMaszyn[id];
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-outline sonda-btn'; 
+        btn.innerHTML = `<span class="sonda-id">${maszynData.nr}</span><span class="sonda-desc">${maszynData.nazwa}</span>`;
+        btn.onclick = () => handleMachineSelect(id);
+        container.appendChild(btn);
+    }
+}
+
+
+function resumeSavedSession() {
+    const savedData = localStorage.getItem(LOCALSTORAGE_KEY);
+    if (savedData) {
+        const parsed = JSON.parse(savedData);
+        // Przenosimy dane do aktywnej sesji
+        Object.assign(session, parsed);
+        
+        // Ważne: przywracamy datę jako obiekt Date
+        session.date = new Date(session.date);
+        
+        // Inicjalizujemy interfejs i idziemy do pomiarów
+        initKeypad();
+        router.init(); // Inicjalizacja routera jeśli nie była zrobiona
+        updateStats(); 
+        router.goTo('measurement-screen');
+    }
+}
+
+function clearOldSession() {
+    if (confirm("Czy na pewno chcesz usunąć zapisaną sesję? Dane zostaną bezpowrotnie utracone.")) {
+        localStorage.removeItem(LOCALSTORAGE_KEY);
+        // Czyścimy obiekt sesji i startujemy od nowa
+        location.reload(); 
+    }
+}
     
    function initKeypad() {
 		const kp = document.getElementById('keypad');
@@ -639,22 +694,32 @@
 		ent.onclick = () => handleInput('ENTER');
 		kp.appendChild(ent);
 	}
+	
+	
+	
 
     function handleInput(val) {
         const disp = document.getElementById('input-field');
-        
-        if (val === 'C') { disp.value = disp.value.slice(0, -1); return; }
-        if (val === 'ENTER') {
-            const v = parseFloat(disp.value);
-            if (!isNaN(v)) {
-                session.measurements.push(v);
-                if(session.measurements.length <= 50 ){ session.idealMeasurements[session.measurements.length - 1] = v; }
-                disp.value = '';
-                updateStats(); // Wywołanie aktualizacji
-                if (navigator.vibrate) navigator.vibrate(40);
-            }
-            return;
+    
+    if (val === 'C') { disp.value = disp.value.slice(0, -1); return; }
+    if (val === 'ENTER') {
+        const v = parseFloat(disp.value);
+        if (!isNaN(v)) {
+            session.measurements.push(v);
+            if(session.measurements.length <= 50 ){ session.idealMeasurements[session.measurements.length - 1] = v; }
+            
+            // DODANO: Aktualizacja daty ostatniej aktywności
+            session.date = new Date();
+            
+            // AUTOSAVE
+            localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(session));
+            
+            disp.value = '';
+            updateStats();
+            if (navigator.vibrate) navigator.vibrate(40);
         }
+        return;
+    }
         if (val === '-') {
             disp.value = disp.value.startsWith('-') ? disp.value.slice(1) : '-' + disp.value;
             return;
@@ -664,50 +729,37 @@
     }
 
     function undoLast() {
-		let l = session.measurements.length;
-        if (l > 0) {
-            session.measurements.pop();
-            l -= 1;
-            session.idealMeasurements[l] = session.masterParams.master;
-            updateStats();
-        }
+    let l = session.measurements.length;
+    if (l > 0) {
+        session.measurements.pop();
+        l -= 1;
+        session.idealMeasurements[l] = session.masterParams.master;
+        
+        // AUTOSAVE po usunięciu
+        localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(session));
+        
+        updateStats();
     }
-
-    // NAWIGACJA
-   function navigateTo(targetId) {
-
-		const target = document.getElementById(targetId);
-
-		// jeśli sekcja nie istnieje
-		if (!target) {
-			console.error(`Sekcja o ID "${targetId}" nie istnieje!`);
-			document.getElementById('machine-select-screen')?.classList.add('active');
-			return;
-		}
-
-		// usuń aktywność z obecnej sekcji
-		document.querySelectorAll("main > section.active")
-			.forEach(s => s.classList.remove('active'));
-
-		// aktywuj docelową sekcję
-		target.classList.add('active');
-
-	}
-    
-    
+}
+   
 	function resetAppToStart() {
-		// 1. Czyścimy dane obecnej sesji, aby powrót nie wczytał starych wyników
-		session.measurements = [];
-		session.machineID = null;
-		session.probeID = null;
+    // 1. Czyścimy pamięć trwałą
+    localStorage.removeItem(LOCALSTORAGE_KEY);
 
-		// 2. Zamiast dodawać nowy wpis do historii, nadpisujemy obecny (confirm-leave-screen) 
-		// ekranem wyboru maszyny. Dzięki temu "Wstecz" nie wróci już do pomiarów.
-		history.replaceState({ sectionId: 'machine-select-screen' }, "", "#home");
+    // 2. Pełny reset obiektu sesji (czyścimy wszystko, nie tylko 3 pola)
+    session.measurements = [];
+    session.idealMeasurements = [];
+    session.machineID = null;
+    session.machineNr = null;
+    session.probeID = null;
+    session.date = null;
 
-		// 3. Przełączamy widok
-		navigateTo('machine-select-screen', true);
-	}
+    // 3. Twardy reset nawigacji
+    history.replaceState({ sectionId: 'machine-select-screen' }, "", "#home");
+    
+    // 4. Najbezpieczniejsza metoda przy resecie całego stanu to przeładowanie
+    location.reload(); 
+}
 
     // OBSŁUGA WYBORÓW
     function handleMachineSelect(id) {
@@ -719,7 +771,7 @@
         session.machineNr = katalogMaszyn[id].nr;
         document.getElementById('current-machine-label').textContent = session.machineNr;
         renderProbeButtons(id);
-        navigateTo('probe-select-screen');
+        router.goTo('probe-select-screen');
     }
 
     function renderProbeButtons(mId) {
@@ -734,7 +786,7 @@
             btn.onclick = () => {
                 session.probeID = sId;
                 session.probeName = sondy[sId].nazwa_cechy;
-                navigateTo('master-select-screen');
+                router.goTo('master-select-screen');
             };
             container.appendChild(btn);
         }
@@ -750,14 +802,14 @@
         const g = session.masterParams.graduation;
 
         document.getElementById('measurement-title').innerText = `Pomiar Sonda: ${session.probeID}`;
-        navigateTo('test-length-screen');
+        router.goTo('test-length-screen');
     }
     
     function handleTestLengthChoice(testLength) {
 		session.testLength = testLength;
 		prepareMeasurements();
 		updateStats();
-		navigateTo('measurement-screen');
+		router.goTo('measurement-screen');
 	}	
     
     function calculateStats(data, nominal, tolerance) {
@@ -787,6 +839,7 @@
 		if (session.masterParams) {
 			session.measurements = [];
 			session.idealMeasurements = new Array(session.testLength).fill(session.masterParams.master);
+			
 		}
 	}
 		
@@ -855,6 +908,7 @@
 		
 		// Sterowanie widocznością interfejsu (blokada po 50 pomiarach)
 		const isFinished = n >= 6; // <- zmienic na session.testLength
+		document.getElementById('input-container').classList.toggle('hidden', isFinished);
 		document.getElementById('keypad').classList.toggle('hidden', isFinished);
 		document.getElementById('btn-final').classList.toggle('hidden', !isFinished);
 		
@@ -862,11 +916,7 @@
 	}
 	
 	function handleBackFromMeasurements() {
-		if (session.measurements.length > 5) {
-			navigateTo('confirm-leave-screen');
-		} else {
-			navigateTo('test-length-screen');
-		}
+		history.back();
 	}
 
 /**
@@ -977,6 +1027,81 @@ function drawChart(canvasId = 'chart_canva') {
     ctx.fillText("MASTER: " + m.toFixed(3), w - 5, yScale(m) - 5);
 }
 
+function closeApp(save = false) {
+	if (save) {
+		localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(session));
+	}
+	
+	window.close();
+	
+	setTimeout(() => {
+		window.location.href = 'about:blank';
+	}, 100);
+	
+}
+
+
+const router = {
+    current: 'machine-select-screen',
+
+    // Definicja sztywnego zachowania przycisku "Wstecz" dla każdego ekranu
+    backLogic: {
+    'probe-select-screen': 'machine-select-screen',
+    'master-select-screen': 'probe-select-screen',
+    'test-length-screen': 'master-select-screen',
+    'measurement-screen': 'confirm-leave-screen', 
+    'confirm-leave-screen': 'measurement-screen',
+    'raport-screen': 'measurement-screen', // Poprawiona nazwa z report-page
+    'machine-select-screen': () => {
+		closeApp();
+	}
+},
+
+    init: function() {
+        // Blokujemy startowy stan
+        history.replaceState({ id: this.current }, "");
+        this.render();
+
+        window.onpopstate = (event) => {
+            // Pobieramy gdzie chcemy iść na podstawie logiki, a nie historii
+            const target = this.backLogic[this.current];
+            
+            if (target) {
+                // Czyścimy historię "w przód" i wymuszamy nasz cel
+                this.goTo(target, true); 
+            } else {
+                // Jeśli nie ma zdefiniowanej drogi powrotnej (np. start), zostajemy
+                history.pushState({ id: this.current }, "");
+            }
+        };
+    },
+
+    goTo: function(sectionId, isBackAction = false) {
+        this.current = sectionId;
+        
+        if (!isBackAction) {
+            // Jeśli idziemy normalnie do przodu (np. kliknięcie przycisku)
+            history.pushState({ id: sectionId }, "");
+        }
+        
+        this.render();
+    },
+
+    render: function() {
+        document.querySelectorAll('main > section').forEach(s => {
+            s.classList.toggle('active', s.id === this.current);
+        });
+
+        // Specyficzne akcje dla widoków
+        if (this.current === 'report-screen' && typeof renderReportTable === 'function') {
+            renderReportTable();
+        }
+    },
+    
+    goBack: () => {history.back()}
+};
+
+
 function generateFullHTML() {
     const stats = calculateStats(session.measurements, session.masterParams.master, session.masterParams.rf);
     const f = session.grad;
@@ -987,7 +1112,8 @@ function generateFullHTML() {
 <head>
     <meta charset="UTF-8">
     <style>
-        body { font-family: sans-serif; color: #333; padding: 20px; max-width: 900px; margin: auto; }
+		:host { display:block; background: #777; font-family: sans-serif; color: #333; padding: 20px; max-width: 700px; margin: auto; }
+        body { background:white; font-family: sans-serif; color: #333; padding: 20px; max-width: 900px; margin: auto; }
         .grid { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 20px; }
         .card { max-width: 100%; flex: 1; border: 1px solid #eee; padding: 15px; border-radius: 8px; background: #fcfcfc; }
         .chart-container { text-align: center; margin-top: 20px; border: 1px solid #eee; padding: 10px; }
@@ -996,6 +1122,10 @@ function generateFullHTML() {
         th { background: #f4f4f4; }
         .status-pass { color: green; font-weight: bold; }
         .status-fail { color: red; font-weight: bold; }
+        
+        @media (max-width: 700) {
+			.grid {flex-direction: column;}
+		}
     </style>
 </head>
 <body>
@@ -1035,11 +1165,17 @@ function generateFullHTML() {
             <tr><th>Nr</th><th>Wartość</th></tr>
         </thead>
         <tbody>
-            ${session.measurements.map((m, i) => `<tr><td>${i+1}</td><td>${m.toFixed(f)}</td></tr>`).join('')}
+            ${returnTableBody()}
         </tbody>
     </table>
 </body>
 </html>`;
+}
+
+function returnTableBody() {
+    return session.measurements
+        .map((m, i) => `<tr><td>${i + 1}</td><td>${m.toFixed(session.grad)}</td></tr>`)
+        .join('');
 }
 
 function generateSVGChart() {
@@ -1129,28 +1265,23 @@ function generateSVGHistogram() {
     return svg;
 }
 
+
+
 function raportPage() {
-    const rs = document.getElementById('raport-screen');
-    const fullHtml = generateFullHTML(); // Pobierasz wygenerowany HTML
-
-    // 1. Tworzysz Bloba z zawartością HTML
-    const blob = new Blob([fullHtml], { type: 'text/html' });
-
-    // 2. Generujesz tymczasowy URL do tego Bloba
-    const blobUrl = URL.createObjectURL(blob);
-
-    rs.innerHTML = `
-        <div class="raport-controls" style="padding: 10px; display: flex; gap: 10px;">
-            <button onclick="navigateTo('measurement-screen')" class="btn">Powrót</button>
-            <button onclick="handleFinalizeAndShare()" class="btn btn-primary">Udostępnij raport</button>
-        </div>
-        <iframe src="${blobUrl}" style="width: 100%; height: 80vh; border: none;"></iframe>
-    `;
-
-    navigateTo('raport-screen');
+    const host = document.getElementById('report-host');
     
-    // Opcjonalnie: Zwolnij pamięć po zamknięciu raportu (ważne przy wielu raportach)
-    // URL.revokeObjectURL(blobUrl);
+    // Sprawdzamy czy shadowRoot już istnieje
+    let shadow = host.shadowRoot;
+
+    if (!shadow) {
+        // Jeśli nie istnieje (pierwsze wywołanie), tworzymy go
+        shadow = host.attachShadow({ mode: 'open' });
+    }
+
+    // Nadpisujemy treść (zadziała zarówno przy pierwszym jak i kolejnym wywołaniu)
+    shadow.innerHTML = generateFullHTML();
+
+    router.goTo('raport-screen');
 }
 
 async function handleFinalizeAndShare() {
@@ -1186,8 +1317,12 @@ async function handleFinalizeAndShare() {
             console.log("Share anulowany, ale plik pobrany.");
         }
     }
+    
+    if (confirm("Czy chcesz zakończyć sesję i wyczyścić dane z urządzenia?")) {
+        localStorage.removeItem(LOCALSTORAGE_KEY);
+        location.reload();
+    }
 }
-
 // --- AUTOMATYCZNE ODŚWIEŻANIE PRZY ZMIANIE TRYBU DARK/LIGHT ---
 const themeWatcher = window.matchMedia('(prefers-color-scheme: dark)');
 themeWatcher.addEventListener('change', () => drawChart());
@@ -1219,6 +1354,7 @@ window.addEventListener('keydown', (event) => {
 		undoLast();
 	}
 });
+
 
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
