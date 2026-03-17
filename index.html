@@ -11,7 +11,7 @@
     <title>R&R Automate</title>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <style>
-   /* Zmienne i Reset */
+    /* Zmienne i Reset */
     :root {
         --bg-color: #f0f2f5;
         --text-color: #333333;
@@ -67,6 +67,8 @@
         height: 100dvh; 
         overflow: hidden; 
         transition: background-color 0.3s ease;
+        touch-action: manipulation; /* Wyłącza double-tap-to-zoom */
+		overscroll-behavior: none;   /* Wyłącza pull-to-refresh i efekty krawędzi */
     }
     
     main { height: 100%; width: 100%; position: relative; }
@@ -148,6 +150,9 @@
     .btn-primary { background-color: var(--primary-color); color: var(--primary-text); }
     .btn-secondary { background-color: var(--secondary-color); color: var(--secondary-text); }
     .btn-outline { background: transparent; border: 2px solid var(--primary-color); color: var(--primary-color); }
+    .btn-outline-success { background: transparent; border: 2px solid var(--success-color); color: var(--primary-color); }
+    .btn-outline-fail { background: transparent; border: 2px solid red; color: var(--primary-color); }
+
     .btn-success { background-color: var(--success-color); color: white; margin-top: 15px; }
     .btn-back { width: auto; min-height: 40px; padding: 0 15px; font-size: 0.9rem; }
     .btn-warning-leave{ border: 2px solid red; color: red;}
@@ -480,7 +485,7 @@
 
     <section id="probe-select-screen">
         <header>
-            <button class="btn btn-secondary" onclick="changeScreen('machine-select-screen')">← Wstecz</button>
+            <button class="btn btn-secondary" onclick="changeScreen('machine-select-screen')">Wstecz</button>
             <h2>Krok 2: Wybór sondy</h2>
             <p id="current-machine-label" class="text-primary"></p>
         </header>
@@ -489,7 +494,7 @@
     
     <section id="master-select-screen">
         <header>
-            <button class="btn btn-secondary" onclick="changeScreen('probe-select-screen')">
+            <button class="btn btn-secondary btn-back" onclick="changeScreen('probe-select-screen')">
                 ← Wstecz
             </button>
             <h2>Krok 3: Wybór testu</h2>
@@ -503,7 +508,7 @@
     
     <section id="test-length-screen">
 		<header>
-			<button class="btn btn-secondary" onclick="changeScreen('master-select-screen')">
+			<button class="btn btn-secondary btn-back" onclick="changeScreen('master-select-screen')">
                 ← Wstecz
             </button>
             <h2>Krok 4: Długość testu</h2>
@@ -604,6 +609,16 @@
             </button>
         </div>
     </div>
+</section>
+
+<section id="yes-no-screen">
+	<header>
+		<h2 id="header-yes-no">--</h2>
+		<p id="header-yes-no-expl" >--</p>
+	</header>
+	<footer>
+		<button class="btn btn-outline btn-outline-success"></button>
+	</footer>
 </section>
 </main>
 
@@ -812,24 +827,25 @@ function resetSessionObject() {
     function handleInput(val) {
         const disp = document.getElementById('input-field');
     
-    if (val === 'C') { disp.value = disp.value.slice(0, -1); return; }
-    if (val === 'ENTER') {
-        const v = parseFloat(disp.value);
-        if (!isNaN(v)) {
-            session.measurements.push(v);
-            session.date = new Date();
-			localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(session));
-			updateStats();
-            if(session.measurements.length <= 50 ){ 
-				session.idealMeasurements[session.measurements.length - 1] = v;
-			 }
-       
-            disp.value = '';
-            updateStats();
-            if (navigator.vibrate) navigator.vibrate(40);
-        }
-        return;
-    }
+		if (val === 'C') { disp.value = disp.value.slice(0, -1); return; }
+		if (val === 'ENTER') {
+			const rawValue = disp.value.replace(',', '.');
+			const v = parseFloat(rawValue);
+			if (!isNaN(v) && /^-?\d*\.?\d*$/.test(rawValue)) {
+				session.measurements.push(v);
+				session.date = new Date();
+				localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(session));
+				updateStats();
+				if(session.measurements.length <= 50 ){ 
+					session.idealMeasurements[session.measurements.length - 1] = v;
+				 }
+		   
+				disp.value = '';
+				updateStats();
+				if (navigator.vibrate) navigator.vibrate(40);
+			}
+			return;
+		}
         if (val === '-') {
             disp.value = disp.value.startsWith('-') ? disp.value.slice(1) : '-' + disp.value;
             return;
@@ -854,11 +870,29 @@ function resetSessionObject() {
 	}
    
 	function resetAppToStart() {
-		if (confirm("Czy na pewno chcesz usunąć sesję?")) {
-			localStorage.removeItem(LOCALSTORAGE_KEY);
-			location.reload(); // Najczystszy sposób na reset wszystkich zmiennych
-		}
-	}
+    // Zamiast confirm() można w przyszłości wstawić ładny modal HTML
+    if (confirm("Czy na pewno chcesz przerwać i usunąć wszystkie dane obecnej sesji?")) {
+        
+        // 1. Czyszczenie magazynu trwałego
+        localStorage.removeItem(LOCALSTORAGE_KEY);
+        
+        // 2. Przywrócenie obiektu sesji do stanu zero (używamy Twojej funkcji)
+        resetSessionObject();
+        
+        // 3. Reset wizualny pól input i nagłówków
+        document.getElementById('input-field').value = '';
+        document.getElementById('history-log').innerHTML = '';
+        document.getElementById('val-avg').innerText = "--";
+        document.getElementById('val-cg').innerText = "--";
+        document.getElementById('val-cgk').innerText = "--";
+        document.getElementById('counter').innerText = "0/--";
+        
+        // 4. Powrót do startu bez przeładowania (Smooth SPA transition)
+        changeScreen('machine-select-screen');
+        
+        console.log("Aplikacja zresetowana pomyślnie.");
+    }
+}
 
     // OBSŁUGA WYBORÓW
     function handleMachineSelect(id) {
@@ -1125,24 +1159,38 @@ function changeScreen(screenId) {
     session.currentScreen = screenId;
     
     // Zapamiętaj gdzie jesteś
-    if (session.measurements.length === 0) {session.date = new Date().getTime();}
+    if (session.measurements.length === 0) {
+        session.date = new Date().getTime();
+    }
     localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(session));
 
-    // Przełączanie widoczności
-    document.querySelectorAll('main > section').forEach(section => {
-        section.classList.toggle('active', section.id === screenId);
-    });
+    // Definiujemy logikę zmiany DOM w osobnej funkcji
+    const updateDOM = () => {
+        // Przełączanie widoczności
+        document.querySelectorAll('main > section').forEach(section => {
+            section.classList.toggle('active', section.id === screenId);
+        });
 
-    // Specyficzne akcje dla ekranów
-    if (screenId === 'measurement-screen') {
-        updateStats();
+        // Specyficzne akcje dla ekranów
+        if (screenId === 'measurement-screen') {
+            updateStats();
+        }
+        if (screenId === 'machine-select-screen') {
+            renderMachineButtons();
+        }
+        if (screenId === 'probe-select-screen') {
+            renderProbeButtons(session.machineID);
+        }
+    };
+
+    // Obsługa View Transitions API
+    if (document.startViewTransition) {
+        // Natywne płynne przejście
+        document.startViewTransition(() => updateDOM());
+    } else {
+        // Fallback dla starszych przeglądarek
+        updateDOM();
     }
-    if (screenId === 'machine-select-screen') {
-        renderMachineButtons();
-    }
-    if (screenId === 'probe-select-screen') {
-		renderProbeButtons(session.machineID);
-	}
 }
 
 function generateFullHTML() {
@@ -1373,40 +1421,36 @@ function generateSVGHistogram() {
 async function handleFinalizeAndShare() {
     const reportHtml = generateFullHTML();
     const blob = new Blob([reportHtml], { type: 'text/html' });
-    const fileName = `Raport_${session.machineNr}_${new Date().toISOString().slice(0,10)}.html`;
+    const fileName = `Raport_${session.machineNr}_${session.probeID}_${new Date().toISOString().slice(0,10)}.html`;
 
-    // KROK 1: Zapis na dysk (Plan B)
-    // To dzieje się lokalnie, nie wymaga internetu.
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = fileName;
-    link.click();
-    URL.revokeObjectURL(link.href);
-
-    // KROK 2: Udostępnianie (Plan A)
-    // Mała pauza, żeby system "przetrawił" pobieranie
-    await new Promise(r => setTimeout(r, 500));
-
-    if (navigator.share) {
-        const file = new File([blob], fileName, { type: 'text/html' });
-        try {
+    try {
+        // Sprawdzamy czy przeglądarka wspiera Web Share API dla plików
+        if (navigator.canShare && navigator.canShare({ files: [new File([blob], fileName, { type: 'text/html' })] })) {
+            const file = new File([blob], fileName, { type: 'text/html' });
             await navigator.share({
                 files: [file],
                 title: 'Raport SPA',
-                text: `Przesyłam raport dla maszyny: ${session.machineNr}`
+                text: `Przesyłam raport metrologiczny dla: ${session.machineNr}`
             });
-            // Jeśli tu dotarliśmy, okno share się otworzyło.
-            // Możemy teraz wyświetlić prosty komunikat:
-            alert("Raport zapisano na urządzeniu i wywołano menu wysyłki.");
-        } catch (err) {
-            // Jeśli użytkownik anulował share, plik i tak już jest na dysku (z kroku 1)
-            console.log("Share anulowany, ale plik pobrany.");
+        } else {
+            // Plan B: Jeśli Share API nie jest wspierane lub nie obsługuje plików (np. niektóre przeglądarki desktopowe)
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = fileName;
+            link.click();
+            URL.revokeObjectURL(link.href);
+            alert("Raport został pobrany do pamięci urządzenia.");
         }
+    } catch (err) {
+        console.error("Błąd udostępniania:", err);
+        // Nie przerywamy procesu, jeśli użytkownik po prostu anulował okno udostępniania
     }
-    
-    if (confirm("Czy chcesz zakończyć sesję i wyczyścić dane z urządzenia?")) {
+
+    // Zamiast reload(), pytamy o nową sesję
+    if (confirm("Raport przetworzony. Czy chcesz zakończyć tę sesję i rozpocząć nowy pomiar?")) {
         localStorage.removeItem(LOCALSTORAGE_KEY);
-        location.reload();
+        resetSessionObject();
+        changeScreen('machine-select-screen');
     }
 }
 // --- AUTOMATYCZNE ODŚWIEŻANIE PRZY ZMIANIE TRYBU DARK/LIGHT ---
