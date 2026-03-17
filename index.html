@@ -11,7 +11,7 @@
     <title>R&R Automate</title>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <style>
-    /* Zmienne i Reset */
+   /* Zmienne i Reset */
     :root {
         --bg-color: #f0f2f5;
         --text-color: #333333;
@@ -394,11 +394,11 @@
 
 .measurements-ind {
 	justify-content: center;
-	background-color: tranparent;
+	background-color: transparent;
 	border: none;
 }
 
-.measurements-ind-fail {
+.measurements-ind-failed {
 	border: 1px solid red;
 	color: white;
 	background-color: red;
@@ -410,7 +410,49 @@
 	background-color:green;
 }
 
+#report-host {
+	margin: auto;
+}
 
+/* --- Siatka i karty wyboru (Mobile-First) --- */
+.sonda-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+    margin-top: 15px;
+    padding-bottom: 20px; /* Miejsce na scroll */
+}
+
+.sonda-btn {
+    min-height: 80px; /* Wygodny obszar dotykowy */
+    padding: 15px 10px;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+}
+
+.sonda-id {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--text-color);
+}
+
+.sonda-desc {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-align: center;
+    line-height: 1.2;
+}
+
+
+.report-header-btn {
+	display: flex;
+	flex-direction: row;
+	gap: 10px;
+}
 </style>
 </head>
 <body>
@@ -418,7 +460,7 @@
 <main>
     <section id="machine-select-screen" class="active">
     <header><h2>Krok 1: Wybór Maszyny</h2></header>
-    <button class="btn btn-primary" onclick="router.goTo('qr-scanner-screen')">Skanuj kod QR</button>
+    <button class="btn btn-primary" onclick="changeScreen('qr-scanner-screen')">Skanuj kod QR</button>
     
     <p class="centered-label">Wybierz maszynę z listy:</p>
     <div id="machine-buttons-container" class="sonda-grid">
@@ -427,7 +469,7 @@
 
     <section id="qr-scanner-screen">
         <header>
-            <button class="btn btn-secondary" onclick="router.goTo('machine-select-screen')">Anuluj</button>
+            <button class="btn btn-secondary" onclick="changeScreen('machine-select-screen')">Anuluj</button>
             <h2>Skanowanie QR</h2>
         </header>
         <div class="qr-placeholder">
@@ -438,7 +480,7 @@
 
     <section id="probe-select-screen">
         <header>
-            <button class="btn btn-secondary" onclick="router.goTo('machine-select-screen')">Wstecz</button>
+            <button class="btn btn-secondary" onclick="changeScreen('machine-select-screen')">Wstecz</button>
             <h2>Krok 2: Wybór sondy</h2>
             <p id="current-machine-label" class="text-primary"></p>
         </header>
@@ -447,19 +489,21 @@
     
     <section id="master-select-screen">
         <header>
-            <button class="btn btn-secondary btn-back" onclick="router.goTo('probe-select-screen')">
+            <button class="btn btn-secondary btn-back" onclick="changeScreen('probe-select-screen')">
                 ← Wstecz
             </button>
             <h2>Krok 3: Wybór testu</h2>
         </header>
-        <button class="btn btn-outline" onclick="handleMasterSelect('zero')">ZERO Master</button>
-        <button class="btn btn-outline" onclick="handleMasterSelect('span')">SPAN Master</button>
+        <footer class="sonda-grid">
+			<button class="btn btn-outline sonda-btn" onclick="handleMasterSelect('zero')">ZERO Master</button>
+			<button class="btn btn-outline sonda-btn" onclick="handleMasterSelect('span')">SPAN Master</button>
+		</footer>
         
     </section>
     
     <section id="test-length-screen">
 		<header>
-			<button class="btn btn-secondary btn-back" onclick="router.goTo('master-select-screen')">
+			<button class="btn btn-secondary btn-back" onclick="changeScreen('master-select-screen')">
                 ← Wstecz
             </button>
             <h2>Krok 4: Długość testu</h2>
@@ -471,7 +515,7 @@
 
     <section id="measurement-screen">
         <header class="header-compact">
-        <button class="btn-nav-mini" onclick="history.back()" title="Wstecz">←</button>
+        <button class="btn-nav-mini" onclick="measurementsBack()" title="Wstecz">←</button>
         <div class="header-title-area">
             <h2 id="measurement-title" class="title-mini">Sonda: --</h2>
             <span id="active-station-name" class="text-muted-xs">Stacja</span>
@@ -527,8 +571,7 @@
         </header>
         <footer>
 			<button class="btn btn-outline btn-warning-leave" onclick="resetAppToStart()">Przerwij</button>
-			<button class="btn btn-outline btn-continue" onclick="router.goBack()">Wróć do pomiarów</button>
-			<button class="btn btn-outline btn-save-for-later" onclick="closeApp(true)">Zapisz i kontynuuj później</button>
+			<button class="btn btn-outline btn-continue" onclick="changeScreen('measurement-screen')">Wróć do pomiarów</button>
 			<button class="btn btn-outline" onclick="raportPage()">Wyślij raport</button>
 		</footer>
     </section>
@@ -536,22 +579,32 @@
     <section id="raport-screen">
 		<header>
 			<h2>Raport</h2>
-			<button onclick="router.goTo('measurement-screen')" class="btn btn-secondary btn-back">Powrót</button>
-            <button onclick="handleFinalizeAndShare()" class="btn btn-primary">Udostępnij raport</button>
+			<div class="report-header-btn" >
+				<button onclick="changeScreen('measurement-screen')" class="btn btn-secondary btn-back">Powrót</button>
+				<button onclick="changeScreen('confirm-leave-screen')" class="btn btn-secondary btn-back">Odrzuć</button>
+				<button onclick="handleFinalizeAndShare()" class="btn btn-primary">Udostępnij raport</button>
+            </div>
 		</header>
 		<div id="report-host" style="height: calc(100% - 70px); overflow-y: auto; padding: 10px;"></div>
     </section>
-    
-	<section id="saved-or-interrupted-session-screen">
-		<header>
-			<h2>Zapisana sesja pomiarowa</h2>
-			<h3 id="resume-screen-info"></h3>
-		</header>
-		<footer>
-			<button class="btn btn-outline" onclick="resumeSavedSession()">Wznów</button>
-			<button class="btn btn-outline" onclick="clearOldSession()">Rozpocznij nową sesje</button>
-		</footer>
-	</section> 
+    	
+	<section id="session-expired-screen" class="screen">
+    <div class="card shadow" style="text-align: center; padding: 2rem;">
+        <div id="expired-icon" style="font-size: 3rem; margin-bottom: 1rem;">🕒</div>
+        <h2 id="expired-title" style="color: var(--primary-color);">Sesja wygasła</h2>
+        <p id="expired-desc" style="margin-bottom: 2rem; color: var(--text-muted);"></p>
+        
+        <div id="expired-actions" style="display: flex; flex-direction: column; gap: 10px;">
+            <button id="btn-save-expired" class="btn btn-success btn-block" style="display: none;" onclick="handleExpiredDownload()">
+                💾 Pobierz zapomniany raport
+            </button>
+            
+            <button class="btn btn-primary btn-block" onclick="handleStartNewAfterExpired()">
+                🆕 Rozpocznij nowy pomiar
+            </button>
+        </div>
+    </div>
+</section>
 </main>
 
 <script>
@@ -575,95 +628,153 @@
 };
 
     // STAN SESJI I ZMIENNE POMIAROWE
-    let currentSession = { machineId: null, probeId: null, masterType: null, testLength: 0 };
-    let session = {
-			date: null,   //data
-			machineID: null,
-			machineNr: null,
-			machineName: null, // Nazwa maszyny np A2-SUB-0020
-			probeID: null, 
-			probeName: null,   // Nazwa sondy np PIN A HEIGHT
-			masterType: null,	// ZERO / SPAN
-			masterParams: null, // obiekt z katalogMaszyn[id].sondy[probeID].zero/span
-			testLength: 0, // 30 / 50 powtórzeń
-			grad: 0, //ile cyfr znaczących po przecinku
-			measurements: [], // tablica pomiarów
-			idealMeasurements: [] //tablica do predykcji maksymalnego C_g, C_gk
-		}
-		
-		
-    let measurements = [];
-    let idealMeasurments = [];
+    // Zastąp obecny obiekt session tym:
+	let session = {
+		date: null,
+		machineID: null,
+		machineNr: null,
+		machineName: null,
+		probeID: null, 
+		probeName: null,
+		masterType: null,
+		masterParams: null, 
+		testLength: 0, 
+		grad: 0, 
+		measurements: [], 
+		idealMeasurements: [],
+		currentScreen: 'machine-select-screen' // Domyślny ekran startowy
+	};
 
     // INICJALIZACJA
-    function init() {
+   function init() {
+    initKeypad();
+    renderMachineButtons(); 
+
     const savedData = localStorage.getItem(LOCALSTORAGE_KEY);
-    
-    if (savedData) {
-        try {
-            const parsed = JSON.parse(savedData);
-            // Sprawdzamy, czy sesja ma minimalne dane (np. numer maszyny i przynajmniej jeden pomiar)
-            if (parsed && parsed.machineNr && parsed.measurements.length > 0) {
-                // Wyświetlamy info na ekranie wznawiania
-                const dateInfo = parsed.date ? new Date(parsed.date).toLocaleString() : 'Nieznana data';
-                document.getElementById('resume-screen-info').innerHTML = 
-                    `Maszyna: ${parsed.machineNr}<br>Sonda: ${parsed.probeID}<br>Pomiary: ${parsed.measurements.length}/${parsed.testLength}<br><small>Zapisano: ${dateInfo}</small>`;
-                
-                router.goTo('saved-or-interrupted-session-screen');
-                return; // Zatrzymujemy init, czekamy na decyzję operatora
-            }
-        } catch (e) {
-            console.error("Błąd parsowania sesji", e);
-            localStorage.removeItem(LOCALSTORAGE_KEY);
-        }
+    if (!savedData) {
+        changeScreen('machine-select-screen');
+        return;
     }
 
-    // Jeśli brak sesji, inicjujemy standardowy start
-    renderMachineButtons();
-    initKeypad();
-    router.init();
+    try {
+        const parsed = JSON.parse(savedData);
+		const sessionDate = new Date(parsed?.date).getTime() || 0;
+        const now = new Date().getTime();
+        const oneHour = 1000 * 10;
+
+        if (now - sessionDate > oneHour) {
+            // SCENARIUSZ 1: Brak pomiarów -> czyścimy i idziemy do startu
+            if (!parsed.measurements || parsed.measurements.length === 0) {
+                localStorage.removeItem(LOCALSTORAGE_KEY);
+                console.log('tutaj');
+                resetSessionObject();
+                changeScreen('machine-select-screen');
+            } 
+            // SCENARIUSZ 2 i 3: Są dane (przerwane lub kompletne)
+            else {
+                Object.assign(session, parsed); // Wczytujemy dane do obiektu sesji
+                
+                const isComplete = session.measurements.length >= session.testLength;
+                
+                // Ustawiamy treści na ekranie informacyjnym
+                const descEl = document.getElementById('expired-desc');
+                if (isComplete) {
+                    descEl.innerHTML = `Znaleziono <b>ukończony</b> raport sprzed godziny (${session.measurements.length} pomiarów). <br>Możesz go zapisać przed usunięciem.`;
+                } else {
+                    descEl.innerHTML = `Twoja sesja sprzed godziny była <b>niekompletna</b> (${session.measurements.length}/${session.testLength} pomiarów) i została wygaszona.`;
+                }
+                
+                // Pokazujemy/ukrywamy przycisk zapisu
+                document.getElementById('btn-save-expired').style.display = isComplete ? 'block' : 'none';
+                
+                changeScreen('session-expired-screen');
+            }
+            return;
+        }
+
+        // Jeśli sesja jest świeża (poniżej godziny) - wznawiamy pracę
+        Object.assign(session, parsed);
+        console.log(session.currentScreen);
+        changeScreen(session.currentScreen || 'machine-select-screen');
+
+    } catch (e) {
+        console.error("Błąd krytyczny przy starcie:", e);
+        localStorage.removeItem(LOCALSTORAGE_KEY);
+        changeScreen('machine-select-screen');
+    }
+}
+
+function handleExpiredDownload() {
+    // Wykorzystujemy Twoją istniejącą funkcję do raportu
+    raportPage(); // Zakładam, że tak się nazywa funkcja pobierania
+}
+
+function measurementsBack() {
+	if (session.measurements.length === 0) {
+		changeScreen('test-length-screen');
+	} else {
+		changeScreen('confirm-leave-screen');
+	}
+}
+
+function handleStartNewAfterExpired() {
+    localStorage.removeItem(LOCALSTORAGE_KEY);
+    resetSessionObject();
+    changeScreen('machine-select-screen');
+}
+
+/**
+ * Całkowity reset stanu aplikacji w pamięci RAM.
+ * Przywraca obiekt session do stanu pierwotnego, 
+ * przygotowując go na nowy proces pomiarowy R&R.
+ */
+function resetSessionObject() {
+    // 1. Reset podstawowych informacji o procesie
+    session.date = null;
+    session.currentScreen = 'machine-select-screen';
+    
+    // 2. Reset identyfikatorów sprzętowych
+    session.machineID = null;
+    session.machineNr = null;
+    session.machineName = null;
+    session.probeID = null;
+    session.probeName = null;
+    
+    // 3. Reset parametrów technicznych i tolerancji
+    session.masterType = null;
+    session.masterParams = {
+        master: 0,
+        tolPlus: 0,
+        tolMinus: 0,
+        rf: 0,
+        graduation: 0.001
+    };
+    
+    // 4. Resetowanie danych pomiarowych
+    session.measurements = [];
+    session.testLength = 0;
+    session.grad = 3; // Domyślna dokładność wyświetlania
+    
+    // 5. Czyszczenie tablicy wzorcowej (jeśli używasz jej do wykresu tła)
+    session.idealMeasurements = new Array(50).fill(null);
+
+    console.log("Obiekt sesji został zresetowany do wartości domyślnych.");
 }
 
 // Wyciągamy renderowanie przycisków do osobnej funkcji, by móc ją wywołać po resecie
-function renderMachineButtons() {
-    const container = document.getElementById('machine-buttons-container');
-    container.innerHTML = '';
-    for (let id in katalogMaszyn) {
-        const maszynData = katalogMaszyn[id];
-        const btn = document.createElement('button');
-        btn.className = 'btn btn-outline sonda-btn'; 
-        btn.innerHTML = `<span class="sonda-id">${maszynData.nr}</span><span class="sonda-desc">${maszynData.nazwa}</span>`;
-        btn.onclick = () => handleMachineSelect(id);
-        container.appendChild(btn);
-    }
-}
+	function renderMachineButtons() {
+		const container = document.getElementById('machine-buttons-container');
+		container.innerHTML = '';
+		for (let id in katalogMaszyn) {
+			const maszynData = katalogMaszyn[id];
+			const btn = document.createElement('button');
+			btn.className = 'btn btn-outline sonda-btn'; 
+			btn.innerHTML = `<span class="sonda-id">${maszynData.nr}</span><span class="sonda-desc">${maszynData.nazwa}</span>`;
+			btn.onclick = () => handleMachineSelect(id);
+			container.appendChild(btn);
+		}
+	}
 
-
-function resumeSavedSession() {
-    const savedData = localStorage.getItem(LOCALSTORAGE_KEY);
-    if (savedData) {
-        const parsed = JSON.parse(savedData);
-        // Przenosimy dane do aktywnej sesji
-        Object.assign(session, parsed);
-        
-        // Ważne: przywracamy datę jako obiekt Date
-        session.date = new Date(session.date);
-        
-        // Inicjalizujemy interfejs i idziemy do pomiarów
-        initKeypad();
-        router.init(); // Inicjalizacja routera jeśli nie była zrobiona
-        updateStats(); 
-        router.goTo('measurement-screen');
-    }
-}
-
-function clearOldSession() {
-    if (confirm("Czy na pewno chcesz usunąć zapisaną sesję? Dane zostaną bezpowrotnie utracone.")) {
-        localStorage.removeItem(LOCALSTORAGE_KEY);
-        // Czyścimy obiekt sesji i startujemy od nowa
-        location.reload(); 
-    }
-}
     
    function initKeypad() {
 		const kp = document.getElementById('keypad');
@@ -706,14 +817,13 @@ function clearOldSession() {
         const v = parseFloat(disp.value);
         if (!isNaN(v)) {
             session.measurements.push(v);
-            if(session.measurements.length <= 50 ){ session.idealMeasurements[session.measurements.length - 1] = v; }
-            
-            // DODANO: Aktualizacja daty ostatniej aktywności
             session.date = new Date();
-            
-            // AUTOSAVE
-            localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(session));
-            
+			localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(session));
+			updateStats();
+            if(session.measurements.length <= 50 ){ 
+				session.idealMeasurements[session.measurements.length - 1] = v;
+			 }
+       
             disp.value = '';
             updateStats();
             if (navigator.vibrate) navigator.vibrate(40);
@@ -729,49 +839,37 @@ function clearOldSession() {
     }
 
     function undoLast() {
-    let l = session.measurements.length;
-    if (l > 0) {
-        session.measurements.pop();
-        l -= 1;
-        session.idealMeasurements[l] = session.masterParams.master;
-        
-        // AUTOSAVE po usunięciu
-        localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(session));
-        
-        updateStats();
-    }
-}
+		let l = session.measurements.length;
+		if (l > 0) {
+			session.measurements.pop();
+			
+			l -= 1;
+			session.idealMeasurements[l] = session.masterParams.master;
+			
+			// AUTOSAVE po usunięciu
+			localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(session));
+			
+			updateStats();
+		}
+	}
    
 	function resetAppToStart() {
-    // 1. Czyścimy pamięć trwałą
-    localStorage.removeItem(LOCALSTORAGE_KEY);
-
-    // 2. Pełny reset obiektu sesji (czyścimy wszystko, nie tylko 3 pola)
-    session.measurements = [];
-    session.idealMeasurements = [];
-    session.machineID = null;
-    session.machineNr = null;
-    session.probeID = null;
-    session.date = null;
-
-    // 3. Twardy reset nawigacji
-    history.replaceState({ sectionId: 'machine-select-screen' }, "", "#home");
-    
-    // 4. Najbezpieczniejsza metoda przy resecie całego stanu to przeładowanie
-    location.reload(); 
-}
+		if (confirm("Czy na pewno chcesz usunąć sesję?")) {
+			localStorage.removeItem(LOCALSTORAGE_KEY);
+			location.reload(); // Najczystszy sposób na reset wszystkich zmiennych
+		}
+	}
 
     // OBSŁUGA WYBORÓW
     function handleMachineSelect(id) {
         if (!id) return;
-        currentSession.machineId = id;
-        
+            
         session.machineID = id;
         session.machineName = katalogMaszyn[id].nazwa;
         session.machineNr = katalogMaszyn[id].nr;
         document.getElementById('current-machine-label').textContent = session.machineNr;
         renderProbeButtons(id);
-        router.goTo('probe-select-screen');
+        changeScreen('probe-select-screen');
     }
 
     function renderProbeButtons(mId) {
@@ -786,7 +884,7 @@ function clearOldSession() {
             btn.onclick = () => {
                 session.probeID = sId;
                 session.probeName = sondy[sId].nazwa_cechy;
-                router.goTo('master-select-screen');
+                changeScreen('master-select-screen');
             };
             container.appendChild(btn);
         }
@@ -802,14 +900,14 @@ function clearOldSession() {
         const g = session.masterParams.graduation;
 
         document.getElementById('measurement-title').innerText = `Pomiar Sonda: ${session.probeID}`;
-        router.goTo('test-length-screen');
+        changeScreen('test-length-screen');
     }
     
     function handleTestLengthChoice(testLength) {
 		session.testLength = testLength;
 		prepareMeasurements();
 		updateStats();
-		router.goTo('measurement-screen');
+		changeScreen('measurement-screen');
 	}	
     
     function calculateStats(data, nominal, tolerance) {
@@ -821,7 +919,7 @@ function clearOldSession() {
 		const std = Math.sqrt(variance);
 
 		const epsilon = session.masterParams.graduation / 10
-		if (std < epsilon ) return { avg, cg: 9.99, cgk: 9.99, std: 0 };
+		if (std < epsilon ) return { avg, cg: -9.99, cgk: -9.99, std: 0 };
 
 		const cg = (0.2 * tolerance) / (4 * std);
 		const cgk = (0.1 * tolerance - Math.abs(nominal - avg)) / (2 * std);
@@ -866,7 +964,7 @@ function clearOldSession() {
 			else if (diff > (t * 0.1)) color = '#eab308'; // Żółty - ostrzeżenie
 			else color = '#22c55e'; // Zielony - w punkt
 
-			return `<div class="hist-item" style="color: ${color}; font-weight: bold; margin-bottom: 2px;">${v.toFixed(f)}</div>`;
+			return `<div class="history-item" style="color: ${color}; font-weight: bold; margin-bottom: 2px;">${v.toFixed(f)}</div>`;
 		}).join('');
 
 		// --- OBLICZENIA ---
@@ -915,10 +1013,6 @@ function clearOldSession() {
 		drawChart();
 	}
 	
-	function handleBackFromMeasurements() {
-		history.back();
-	}
-
 /**
  * Pobiera kolory zdefiniowane w CSS. 
  * Robimy to RAZ na początku rysowania, by nie obciążać przeglądarki w pętlach.
@@ -1027,80 +1121,29 @@ function drawChart(canvasId = 'chart_canva') {
     ctx.fillText("MASTER: " + m.toFixed(3), w - 5, yScale(m) - 5);
 }
 
-function closeApp(save = false) {
-	if (save) {
-		localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(session));
-	}
-	
-	window.close();
-	
-	setTimeout(() => {
-		window.location.href = 'about:blank';
-	}, 100);
-	
-}
-
-
-const router = {
-    current: 'machine-select-screen',
-
-    // Definicja sztywnego zachowania przycisku "Wstecz" dla każdego ekranu
-    backLogic: {
-    'probe-select-screen': 'machine-select-screen',
-    'master-select-screen': 'probe-select-screen',
-    'test-length-screen': 'master-select-screen',
-    'measurement-screen': 'confirm-leave-screen', 
-    'confirm-leave-screen': 'measurement-screen',
-    'raport-screen': 'measurement-screen', // Poprawiona nazwa z report-page
-    'machine-select-screen': () => {
-		closeApp();
-	}
-},
-
-    init: function() {
-        // Blokujemy startowy stan
-        history.replaceState({ id: this.current }, "");
-        this.render();
-
-        window.onpopstate = (event) => {
-            // Pobieramy gdzie chcemy iść na podstawie logiki, a nie historii
-            const target = this.backLogic[this.current];
-            
-            if (target) {
-                // Czyścimy historię "w przód" i wymuszamy nasz cel
-                this.goTo(target, true); 
-            } else {
-                // Jeśli nie ma zdefiniowanej drogi powrotnej (np. start), zostajemy
-                history.pushState({ id: this.current }, "");
-            }
-        };
-    },
-
-    goTo: function(sectionId, isBackAction = false) {
-        this.current = sectionId;
-        
-        if (!isBackAction) {
-            // Jeśli idziemy normalnie do przodu (np. kliknięcie przycisku)
-            history.pushState({ id: sectionId }, "");
-        }
-        
-        this.render();
-    },
-
-    render: function() {
-        document.querySelectorAll('main > section').forEach(s => {
-            s.classList.toggle('active', s.id === this.current);
-        });
-
-        // Specyficzne akcje dla widoków
-        if (this.current === 'report-screen' && typeof renderReportTable === 'function') {
-            renderReportTable();
-        }
-    },
+function changeScreen(screenId) {
+    session.currentScreen = screenId;
     
-    goBack: () => {history.back()}
-};
+    // Zapamiętaj gdzie jesteś
+    if (session.measurements.length === 0) {session.date = new Date().getTime();}
+    localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(session));
 
+    // Przełączanie widoczności
+    document.querySelectorAll('main > section').forEach(section => {
+        section.classList.toggle('active', section.id === screenId);
+    });
+
+    // Specyficzne akcje dla ekranów
+    if (screenId === 'measurement-screen') {
+        updateStats();
+    }
+    if (screenId === 'machine-select-screen') {
+        renderMachineButtons();
+    }
+    if (screenId === 'probe-select-screen') {
+		renderProbeButtons(session.machineID);
+	}
+}
 
 function generateFullHTML() {
     const stats = calculateStats(session.measurements, session.masterParams.master, session.masterParams.rf);
@@ -1112,8 +1155,8 @@ function generateFullHTML() {
 <head>
     <meta charset="UTF-8">
     <style>
-		:host { display:block; background: #777; font-family: sans-serif; color: #333; padding: 20px; max-width: 700px; margin: auto; }
-        body { background:white; font-family: sans-serif; color: #333; padding: 20px; max-width: 900px; margin: auto; }
+		:host { display:block; background: #777; font-family: sans-serif; color: #333; padding: 20px; margin: auto; }
+        body { background:white; font-family: sans-serif; color: #333; padding: 20px; margin: auto; }
         .grid { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 20px; }
         .card { max-width: 100%; flex: 1; border: 1px solid #eee; padding: 15px; border-radius: 8px; background: #fcfcfc; }
         .chart-container { text-align: center; margin-top: 20px; border: 1px solid #eee; padding: 10px; }
@@ -1123,8 +1166,10 @@ function generateFullHTML() {
         .status-pass { color: green; font-weight: bold; }
         .status-fail { color: red; font-weight: bold; }
         
-        @media (max-width: 700) {
+        @media (max-width: 700px) {
 			.grid {flex-direction: column;}
+			:host { max-width: 680px;}
+			body { max-width: 680px;}
 		}
     </style>
 </head>
@@ -1178,95 +1223,6 @@ function returnTableBody() {
         .join('');
 }
 
-function generateSVGChart() {
-    const data = session.measurements;
-    const m = session.masterParams.master;
-    const t = session.masterParams.rf;
-    const w = 500; // szerokość obrazka
-    const h = 250; // wysokość obrazka
-    const padding = 40;
-
-    // Obliczamy zakres Y (żeby wykres był czytelny)
-    const minVal = Math.min(...data, m - t/2) - (t*0.1);
-    const maxVal = Math.max(...data, m + t/2) + (t*0.1);
-    const range = maxVal - minVal;
-
-    // Funkcje pomocnicze do skalowania
-    const getX = (i) => padding + (i / (session.testLength - 1)) * (w - 2 * padding);
-    const getY = (val) => h - padding - ((val - minVal) / range) * (h - 2 * padding);
-
-    let svg = `<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" style="background:#fff; font-family:sans-serif;">`;
-    
-    // 1. Tło i osie
-    svg += `<rect width="100%" height="100%" fill="#f8fafc"/>`;
-    
-    // 2. Linie tolerancji (Czerwone przerywane)
-    const topT = getY(m + t/2);
-    const botT = getY(m - t/2);
-    const masterY = getY(m);
-    
-    svg += `<line x1="${padding}" y1="${topT}" x2="${w-padding}" y2="${topT}" stroke="#ef4444" stroke-dasharray="5,5" />`;
-    svg += `<line x1="${padding}" y1="${botT}" x2="${w-padding}" y2="${botT}" stroke="#ef4444" stroke-dasharray="5,5" />`;
-    svg += `<line x1="${padding}" y1="${masterY}" x2="${w-padding}" y2="${masterY}" stroke="#22c55e" stroke-width="1" />`;
-
-    // 3. Rysowanie linii pomiarów
-    if (data.length > 1) {
-        let points = data.map((v, i) => `${getX(i)},${getY(v)}`).join(" ");
-        svg += `<polyline points="${points}" fill="none" stroke="#3b82f6" stroke-width="2" />`;
-    }
-
-    // 4. Punkty pomiarowe
-    data.forEach((v, i) => {
-        svg += `<circle cx="${getX(i)}" cy="${getY(v)}" r="3" fill="#1d4ed8" />`;
-    });
-
-    // 5. Etykiety tekstowe
-    svg += `<text x="${w-5}" y="${topT}" font-size="10" text-anchor="end" fill="#ef4444">TOL+</text>`;
-    svg += `<text x="${w-5}" y="${botT}" font-size="10" text-anchor="end" fill="#ef4444">TOL-</text>`;
-    svg += `<text x="5" y="${masterY}" font-size="10" fill="#22c55e">MASTER</text>`;
-
-    svg += `</svg>`;
-    return svg;
-}
-
-function generateSVGHistogram() {
-    const data = session.measurements;
-    const w = 400;
-    const h = 200;
-    const padding = 30;
-    const binsCount = 8;
-
-    const min = Math.min(...data);
-    const max = Math.max(...data);
-    const range = max - min || session.masterParams.graduation;
-    const bins = new Array(binsCount).fill(0);
-
-    data.forEach(v => {
-        let idx = Math.floor(((v - min) / range) * (binsCount - 1));
-        bins[idx]++;
-    });
-
-    const maxBin = Math.max(...bins);
-    const barW = (w - 2 * padding) / binsCount;
-
-    let svg = `<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" style="background:#fff;">`;
-    
-    bins.forEach((count, i) => {
-        const barH = maxBin > 0 ? (count / maxBin) * (h - 2 * padding) : 0;
-        const x = padding + i * barW;
-        const y = h - padding - barH;
-        
-        svg += `<rect x="${x + 2}" y="${y}" width="${barW - 4}" height="${barH}" fill="#94a3b8" stroke="#64748b" stroke-width="1"/>`;
-        svg += `<text x="${x + barW/2}" y="${h - 10}" font-size="8" text-anchor="middle" fill="#64748b">${(min + (i * range / (binsCount - 1))).toFixed(session.grad)}</text>`;
-    });
-
-    svg += `<line x1="${padding}" y1="${h-padding}" x2="${w-padding}" y2="${h-padding}" stroke="#333" />`;
-    svg += `</svg>`;
-    return svg;
-}
-
-
-
 function raportPage() {
     const host = document.getElementById('report-host');
     
@@ -1281,7 +1237,137 @@ function raportPage() {
     // Nadpisujemy treść (zadziała zarówno przy pierwszym jak i kolejnym wywołaniu)
     shadow.innerHTML = generateFullHTML();
 
-    router.goTo('raport-screen');
+    changeScreen('raport-screen');
+}
+
+function generateSVGChart() {
+    const data = session.measurements;
+    if (!data || data.length === 0) return '<svg viewBox="0 0 600 300"><text x="300" y="150" text-anchor="middle" font-family="sans-serif">Brak danych</text></svg>';
+
+    const m = session.masterParams.master;
+    const t = session.masterParams.rf;
+    const grad = session.grad || 3;
+    
+    // Obliczanie granic tolerancji
+    const topT = m + t / 2;
+    const botT = m - t / 2;
+
+    const w = 600;
+    const h = 300;
+    const paddingX = 60; // Miejsce po lewej na napisy
+    const paddingY = 40; // Miejsce góra/dół
+
+    // Ustalanie skali osi Y (uwzględnia tolerancję i odchylenia pomiarów)
+    const allValues = [...data, topT, botT];
+    const rawMin = Math.min(...allValues);
+    const rawMax = Math.max(...allValues);
+    const margin = (rawMax - rawMin) * 0.1 || t * 0.1; // 10% marginesu na skali
+
+    const minVal = rawMin - margin;
+    const maxVal = rawMax + margin;
+    const rangeY = maxVal - minVal;
+
+    // Funkcje skalujące punkty na piksele (uwaga: w SVG Y=0 to góra ekranu)
+    const getX = (i) => paddingX + (i / Math.max(1, data.length - 1)) * (w - 2 * paddingX);
+    const getY = (val) => paddingY + ((maxVal - val) / rangeY) * (h - 2 * paddingY);
+
+    let svg = `<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" style="background:#fff; border: 1px solid #e5e7eb; border-radius: 4px;">`;
+
+    // Zielone tło strefy tolerancji
+    const yTop = getY(topT);
+    const yBot = getY(botT);
+    svg += `<rect x="${paddingX}" y="${yTop}" width="${w - 2 * paddingX}" height="${yBot - yTop}" fill="#f0fdf4" />`;
+
+    // Linie tolerancji i mastera
+    const yMaster = getY(m);
+    svg += `<line x1="${paddingX}" y1="${yTop}" x2="${w - paddingX}" y2="${yTop}" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="5,5" />`;
+    svg += `<line x1="${paddingX}" y1="${yBot}" x2="${w - paddingX}" y2="${yBot}" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="5,5" />`;
+    svg += `<line x1="${paddingX}" y1="${yMaster}" x2="${w - paddingX}" y2="${yMaster}" stroke="#22c55e" stroke-width="1.5" />`;
+
+    // Podpisy osi Y (Wartości liczbowe)
+    const textStyle = `font-family:sans-serif; font-size:11px; font-weight:bold;`;
+    svg += `<text x="${paddingX - 8}" y="${yTop + 4}" style="${textStyle}" text-anchor="end" fill="#ef4444">${topT.toFixed(grad)}</text>`;
+    svg += `<text x="${paddingX - 8}" y="${yBot + 4}" style="${textStyle}" text-anchor="end" fill="#ef4444">${botT.toFixed(grad)}</text>`;
+    svg += `<text x="${paddingX - 8}" y="${yMaster + 4}" style="${textStyle}" text-anchor="end" fill="#22c55e">${m.toFixed(grad)}</text>`;
+
+    // Linia łącząca pomiary
+    if (data.length > 1) {
+        const points = data.map((v, i) => `${getX(i)},${getY(v)}`).join(" ");
+        svg += `<polyline points="${points}" fill="none" stroke="#3b82f6" stroke-width="2" />`;
+    }
+
+    // Punkty pomiarowe z rozróżnieniem kolorów (czerwony poza zakresem)
+    data.forEach((v, i) => {
+        const isOut = v > topT || v < botT;
+        svg += `<circle cx="${getX(i)}" cy="${getY(v)}" r="4" fill="${isOut ? '#ef4444' : '#3b82f6'}" stroke="#fff" stroke-width="1.5" />`;
+    });
+
+    svg += `</svg>`;
+    return svg;
+}
+
+function generateSVGHistogram() {
+    const data = session.measurements;
+    if (!data || data.length === 0) return '';
+
+    const w = 600;
+    const h = 250;
+    const paddingX = 40;
+    const paddingY = 30;
+    const binsCount = 10;
+
+    let min = Math.min(...data);
+    let max = Math.max(...data);
+
+    // Zabezpieczenie: jeśli wszystkie pomiary są identyczne, tworzymy sztuczny zakres oparty na tolerancji
+    if (min === max) {
+        const t = session.masterParams.rf || 0.1;
+        min = min - t/2;
+        max = max + t/2;
+    }
+
+    const range = max - min;
+    const bins = new Array(binsCount).fill(0);
+
+    // Poprawne mapowanie pomiarów do koszyków (bins)
+    data.forEach(v => {
+        let idx = Math.floor(((v - min) / range) * binsCount);
+        if (idx === binsCount) idx--; // Zabezpieczenie dla największej wartości granicznej
+        bins[idx]++;
+    });
+
+    // Najwyższy słupek będzie odniesieniem do wysokości (min 1, żeby nie dzielić przez zero)
+    const maxBin = Math.max(...bins, 1); 
+    const barW = (w - 2 * paddingX) / binsCount;
+
+    let svg = `<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" style="background:#fff; border: 1px solid #e5e7eb; border-radius: 4px;">`;
+
+    // Główna oś pozioma X
+    svg += `<line x1="${paddingX}" y1="${h - paddingY}" x2="${w - paddingX}" y2="${h - paddingY}" stroke="#cbd5e1" stroke-width="2" />`;
+
+    // Generowanie słupków
+    bins.forEach((count, i) => {
+        const barH = (count / maxBin) * (h - 2 * paddingY);
+        const x = paddingX + i * barW;
+        const y = h - paddingY - barH;
+
+        // Pojedynczy słupek
+        svg += `<rect x="${x + 2}" y="${y}" width="${barW - 4}" height="${barH}" fill="#64748b" />`;
+
+        // Tekst nad słupkiem pokazujący ilość sztuk (tylko jeśli > 0)
+        if (count > 0) {
+            svg += `<text x="${x + barW / 2}" y="${y - 5}" font-family="sans-serif" font-size="11" font-weight="bold" text-anchor="middle" fill="#475569">${count}</text>`;
+        }
+
+        // Wartości pod osią X (środek przedziału) - wypisujemy co drugi, żeby było czytelnie
+        if (i % 2 === 0) {
+            const binMidValue = min + (i + 0.5) * (range / binsCount);
+            svg += `<text x="${x + barW / 2}" y="${h - paddingY + 16}" font-family="sans-serif" font-size="10" text-anchor="middle" fill="#64748b">${binMidValue.toFixed(session.grad || 3)}</text>`;
+        }
+    });
+
+    svg += `</svg>`;
+    return svg;
 }
 
 async function handleFinalizeAndShare() {
