@@ -1,4 +1,19 @@
- // TWOJE DANE
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        // Usunięcie kropki sprawia, że ścieżka jest relatywna do lokalizacji index.html
+        navigator.serviceWorker.register('sw.js') 
+            .then(reg => {
+                // Dodaj powiadomienie o aktualizacji (opcjonalnie)
+                reg.onupdatefound = () => {
+                    console.log('Znaleziono nową wersję grafika! Odśwież, aby zaktualizować.');
+                };
+            })
+            .catch(err => console.error('Błąd SW:', err));
+    });
+}
+
+
+// TWOJE DANE
     const LOCALSTORAGE_KEY = 'randr-session';
     
     const machinesDatabase = {
