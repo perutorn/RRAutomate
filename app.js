@@ -12,89 +12,145 @@ if ('serviceWorker' in navigator) {
     });
 }
 
+const LOCALSTORAGE_KEY = 'randr-session';
+const SESSION_TIMEOUT = 86400; //(sek.)
 
-// TWOJE DANE
-    const LOCALSTORAGE_KEY = 'randr-session';
-    
-    const machinesDatabase = {
-    "M001": {
-        nazwa: "RETURN SPRING SNR ASSY",
-        nr: "A2-SUB-0020",
-        sondy: {
-            "LF": { nazwa_cechy: "SWASH PLATE THICKNESS", zero: { rf: 0.02, graduation: 0.0001, master: 0 }, span: { rf: 0.02, graduation: 0.0001, master: 1.6 } },
-            "RF": { nazwa_cechy: "SWASH PLATE THICKNESS", zero: { rf: 0.02, graduation: 0.0001, master: 0 }, span: { rf: 0.02, graduation: 0.0001, master: 1.6 } },
-            "LB": { nazwa_cechy: "SWASH PLATE THICKNESS", zero: { rf: 0.02, graduation: 0.0001, master: 0 }, span: { rf: 0.02, graduation: 0.0001, master: 1.6 } },
-            "RB": { nazwa_cechy: "SWASH PLATE THICKNESS", zero: { rf: 0.02, graduation: 0.0001, master: 0 }, span: { rf: 0.02, graduation: 0.0001, master: 1.6 } },
-            "SNR": { nazwa_cechy: "SNR HEIGHT", zero: { rf: 0.6, graduation: 0.001, master: 0 }, span: { rf: 0.6, graduation: 0.001, master: 2.0 } },
-            "PinA": { nazwa_cechy: "PIN HEIGHT A", zero: { rf: 0.2, graduation: 0.001, master: 0 }, span: { rf: 0.2, graduation: 0.001, master: 1.5 } },
-            "PinB": { nazwa_cechy: "PIN HEIGHT B", zero: { rf: 0.2, graduation: 0.001, master: 0 }, span: { rf: 0.2, graduation: 0.001, master: 1.5 } }
+const machineDB = {
+	"M001": {
+		nazwa: "RETURN SPRING SNR ASSY",
+		nr: "A2-SUB-0020",
+		sondy: {
+			"LF": { nazwa_cechy: "SWASH PLATE THICKNESS", zero: { rf: 0.02, graduation: 0.0001, master: 0 }, span: { rf: 0.02, graduation: 0.0001, master: 1.6 } },
+			"RF": { nazwa_cechy: "SWASH PLATE THICKNESS", zero: { rf: 0.02, graduation: 0.0001, master: 0 }, span: { rf: 0.02, graduation: 0.0001, master: 1.6 } },
+			"LB": { nazwa_cechy: "SWASH PLATE THICKNESS", zero: { rf: 0.02, graduation: 0.0001, master: 0 }, span: { rf: 0.02, graduation: 0.0001, master: 1.6 } },
+			"RB": { nazwa_cechy: "SWASH PLATE THICKNESS", zero: { rf: 0.02, graduation: 0.0001, master: 0 }, span: { rf: 0.02, graduation: 0.0001, master: 1.6 } },
+			"SNR": { nazwa_cechy: "SNR HEIGHT", zero: { rf: 0.6, graduation: 0.001, master: 0 }, span: { rf: 0.6, graduation: 0.001, master: 2.0 } },
+			"Pin A": { nazwa_cechy: "PIN HEIGHT A", zero: { rf: 0.2, graduation: 0.001, master: 0 }, span: { rf: 0.2, graduation: 0.001, master: 1.5 } },
+			"Pin B": { nazwa_cechy: "PIN HEIGHT B", zero: { rf: 0.2, graduation: 0.001, master: 0 }, span: { rf: 0.2, graduation: 0.001, master: 1.5 } }
+		},
+	}
+};
+
+const prepareMachineDBIndex = (data) => {
+	return Object.entries(data).map(([id, info]) => {
+		const probesTags = [...new Set(
+			Object.values(info.sondy).map(s => s.nazwa_cechy)
+		)].join(' ');
+		
+		return {id: id, tags: `${id} ${info.nazwa} ${info.nr} ${probesTags}`.toLowerCase()};
+	});
+}
+	
+const indexedMachineDB = prepareMachineDBIndex(machineDB);
+let machineSelectBtns = null; // wypełnimy to w init()
+
+const debounce = (func, ms) => {
+  let timeout;
+  return (...args) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), ms);
+  };
+};
+
+const handleMachineSearch = (e) => {
+    const text = e.target.value.toLowerCase().trim();
+
+    if (text.length < 1) {
+        filterMachineSearchResults(Object.keys(machineDB)); 
+        return; 
+    }
+	console.log('tutaj');
+    const results = indexedMachineDB
+        .filter(item => item.tags.includes(text))
+        .map(item => item.id);
+
+    filterMachineSearchResults(results);
+};
+
+document.getElementById('machine-select-input').addEventListener (
+    'input', 
+    debounce(handleMachineSearch, 300)
+);
+
+document.getElementById('machine-buttons-container').onclick = (e) => {
+	const btn = e.target.closest('.sonda-btn');
+	if(btn) {
+		handleMachineSelect(btn.dataset.machineId);
+	}
+}
+
+document.getElementById('probe-buttons-container').onclick = (e) => {
+    const btn = e.target.closest('.sonda-btn');
+    if(btn) {
+        // Pobieramy dane z 'btn' (przycisku), a nie z 'e.target' (celu kliknięcia)
+        const machine = btn.dataset.machineId; 
+        const probe = btn.dataset.probeId;
+        
+        if (machine && probe && machineDB[machine]) {
+            session.probeID = probe;
+            // Przypisanie nazwy cechy do sesji
+            session.probeName = machineDB[machine].sondy[probe].nazwa_cechy;
+            changeScreen('master-select-screen');
+        } else {
+            console.error("Błąd: Nie znaleziono danych maszyny lub sondy", {machine, probe});
         }
     }
 };
-
-    // STAN SESJI I ZMIENNE POMIAROWE
-    // Zastąp obecny obiekt session tym:
-	let session = {
-		date: null,
-		machineID: null,
-		machineNr: null,
-		machineName: null,
-		probeID: null, 
-		probeName: null,
-		masterType: null,
-		masterParams: null, 
-		testLength: 0, 
-		grad: 0, 
-		measurements: [], 
-		idealMeasurements: [],
-		currentScreen: 'machine-select-screen' // Domyślny ekran startowy
-	};
 	
-	const SESSION_TIMEOUT = 10; //(sek.)
+let session = {
+	date: null,
+	machineID: null,
+	machineNr: null,
+	machineName: null,
+	probeID: null, 
+	probeName: null,
+	masterType: null,
+	masterParams: null, 
+	testLength: 0, 
+	grad: 0, 
+	measurements: [], 
+	idealMeasurements: [],
+	currentScreen: 'machine-select-screen' // Domyślny ekran startowy
+};
 
-    // INICJALIZACJA
-   function init() {
-		initKeypad();
-		renderMachineButtons();
+function init() {
+	initKeypad();
+	renderMachineButtons();
 
-		const savedData = localStorage.getItem(LOCALSTORAGE_KEY);
-		if (!savedData) {
-			changeScreen('machine-select-screen');
+	const savedData = localStorage.getItem(LOCALSTORAGE_KEY);
+	if (!savedData) {
+		changeScreen('machine-select-screen');
+		return;
+	}
+
+	try {
+		const parsed = JSON.parse(savedData);
+		const sessionDate = new Date(parsed?.date || 0).getTime();
+		const now = Date.now();
+		const isExpired = (now - sessionDate) > (1000 * SESSION_TIMEOUT);
+
+		// SCENARIUSZ: Sesja jest świeża - wznawiamy bez zbędnych pytań
+		if (!isExpired) {
+			Object.assign(session, parsed);
+			changeScreen(session.currentScreen || 'machine-select-screen');
 			return;
 		}
 
-		try {
-			const parsed = JSON.parse(savedData);
-			// Używamy Optional Chaining (?.) i domyślnych wartości dla bezpieczeństwa danych
-			const sessionDate = new Date(parsed?.date || 0).getTime();
-			const now = Date.now();
-			const isExpired = (now - sessionDate) > (1000 * SESSION_TIMEOUT);
-
-			// SCENARIUSZ: Sesja jest świeża - wznawiamy bez zbędnych pytań
-			if (!isExpired) {
-				Object.assign(session, parsed);
-				changeScreen(session.currentScreen || 'machine-select-screen');
-				return;
-			}
-
-			// SCENARIUSZ: Sesja wygasła, ale jest pusta - czyścimy i startujemy od nowa
-			const measurements = parsed?.measurements || [];
-			if (measurements.length === 0) {
-				clearStoredSession();
-				return;
-			}
-
-			// SCENARIUSZ: Sesja wygasła, ale zawiera dane (kompletne lub nie)
-			handleExpiredSessionWithData(parsed);
-
-		} catch (e) {
-			console.error("Błąd krytyczny przy inicjalizacji sesji:", e);
+		// SCENARIUSZ: Sesja wygasła, ale jest pusta - czyścimy i startujemy od nowa
+		const measurements = parsed?.measurements || [];
+		if (measurements.length === 0) {
 			clearStoredSession();
+			return;
 		}
-	}
 
-/** * Funkcje pomocnicze podnoszące czytelność (Clean Code) 
- */
+		// SCENARIUSZ: Sesja wygasła, ale zawiera dane (kompletne lub nie)
+		handleExpiredSessionWithData(parsed);
+
+	} catch (e) {
+		console.error("Błąd krytyczny przy inicjalizacji sesji:", e);
+		clearStoredSession();
+	}
+}
 
 function clearStoredSession() {
     localStorage.removeItem(LOCALSTORAGE_KEY);
@@ -143,18 +199,9 @@ function createStrong(text) {
     return el;
 }
 
-
 function handleExpiredDownload() {
     // Wykorzystujemy Twoją istniejącą funkcję do raportu
     raportPage(); // Zakładam, że tak się nazywa funkcja pobierania
-}
-
-function measurementsBack() {
-	if (session.measurements.length === 0) {
-		changeScreen('test-length-screen');
-	} else {
-		changeScreen('confirm-leave-screen');
-	}
 }
 
 function handleStartNewAfterExpired() {
@@ -163,11 +210,6 @@ function handleStartNewAfterExpired() {
     changeScreen('machine-select-screen');
 }
 
-/**
- * Całkowity reset stanu aplikacji w pamięci RAM.
- * Przywraca obiekt session do stanu pierwotnego, 
- * przygotowując go na nowy proces pomiarowy R&R.
- */
 function resetSessionObject() {
     // 1. Reset podstawowych informacji o procesie
     session.date = null;
@@ -199,49 +241,56 @@ function resetSessionObject() {
     console.log("Obiekt sesji został zresetowany do wartości domyślnych.");
 }
 
-	
-	// Tworzy przyciski na ekranie machine-select-screen z nr maszyny oraz jej opisem
-	// keysToRender to przefiltrowany machinesDatabase z funkcji searchMachines
-	// jeżeli nie przekazano parametru - renderuj wszyskie.
-	function renderMachineButtons(keysToRender = Object.keys(machinesDatabase)) {
-		
-		const container = document.getElementById('machine-buttons-container');
-		container.textContent = '';
+function renderMachineButtons() {
+    const container = document.getElementById('machine-buttons-container');
+    
+    // POPRAWKA: Usuwanie wszystkich dzieci poza tym jednym konkretnym
+    // Iterujemy od końca, aby zmiana indeksów nie psuła pętli
+    const children = Array.from(container.children);
+    children.forEach(child => {
+        if (child.id !== 'machine-select-empty-result') {
+            child.remove(); // Szybsze i nowocześniejsze niż removeChild
+        }
+    });
 
-		if (keysToRender.length === 0) { 
-			const emptyResult = document.createElement('div');
-			emptyResult.className = 'empty-result-msg';
-			emptyResult.textContent = 'brak wyników ...';
-			container.append(emptyResult);
-			return;
-		}
-	
-		const fragment = document.createDocumentFragment();
-		keysToRender.forEach( id => {
-			const machineData = machinesDatabase[id];
-			const btn = document.createElement('button');
-			btn.className = 'btn btn-outline sonda-btn';
-			
-			// Nr maszyny
-			const spanId = document.createElement('span');
-			spanId.className = 'sonda-id';
-			spanId.textContent = machineData.nr;
-			
-			// Opis maszyny
-			const spanDesc = document.createElement('span');
-			spanDesc.className = 'sonda-desc';
-			spanDesc.textContent = machineData.nazwa;
-			
-			btn.append(spanId, spanDesc);
-			btn.onclick = () => { handleMachineSelect(id);}
-			
-			fragment.append(btn);
-		});
+    const fragment = document.createDocumentFragment();
+    for (let id in machineDB) {
+        const machineData = machineDB[id];
+        const btn = document.createElement('button');
+        // Dodaję machine-btn, żeby pasowało do Twojej wcześniejszej logiki filtrowania
+        btn.className = 'btn btn-outline sonda-btn machine-btn'; 
+        btn.dataset.machineId = id;
+        
+        const spanId = document.createElement('span');
+        spanId.className = 'sonda-id';
+        spanId.textContent = machineData.nr;
+        
+        const spanDesc = document.createElement('span');
+        spanDesc.className = 'sonda-desc';
+        spanDesc.textContent = machineData.nazwa;
+        
+        btn.append(spanId, spanDesc);
+        fragment.append(btn);
+    }
+    
+    container.append(fragment);
+}
 		
-		container.append(fragment);
-	}
-	
-//COMPLETE		
+function filterMachineSearchResults(keysToRender) {
+    // Zamieniamy wszystkie otrzymane klucze na małe litery raz przed pętlą
+    const lowerKeys = keysToRender.map(k => k.toLowerCase());
+    
+    document.querySelectorAll('#machine-buttons-container > button').forEach(btn => {
+        // Pobieramy ID z przycisku i też zamieniamy na małe litery
+        const btnId = (btn.dataset.machineId || "").toLowerCase();
+        
+        const isVisible = lowerKeys.includes(btnId);
+        btn.classList.toggle('hidden', !isVisible);
+    });
+    
+    document.getElementById('machine-select-empty-result').classList.toggle('hidden', keysToRender.length > 0);
+}		
+	 	
 function initKeypad() {
 	const kp = document.getElementById('keypad');
 	const fragment = document.createDocumentFragment();
@@ -277,13 +326,13 @@ function initKeypad() {
 	kp.append(fragment);
 }
 	
- // Pomocnicza funkcja zapisu - IT to uwielbia (Single Source of Truth)
 function saveSession() {
     session.date = Date.now(); // Używamy nowocześniejszego Date.now()
     localStorage.setItem(LOCALSTORAGE_KEY, JSON.stringify(session));
 }
 
 function handleInput(value) {
+	document.activeElement.blur();
     const disp = document.getElementById('input-field');
     const val = value.toUpperCase(); // Lepiej operować na dużych, skoro w kodzie masz 'C' i 'ENTER'
 
@@ -313,8 +362,6 @@ function handleInput(value) {
             
             disp.value = '';
             updateStats();
-            
-            if (navigator.vibrate) navigator.vibrate(40);
         }
         return;
     }
@@ -349,179 +396,200 @@ function undoLast() {
     updateStats();
 }  
 
-
-//DO POPRAWY
-	function resetAppToStart() {
-    // Zamiast confirm() można w przyszłości wstawić ładny modal HTML
-    if (confirm("Czy na pewno chcesz przerwać i usunąć wszystkie dane obecnej sesji?")) {
-        
-        // 1. Czyszczenie magazynu trwałego
-        localStorage.removeItem(LOCALSTORAGE_KEY);
-        
-        resetSessionObject();
-        
-        // 3. Reset wizualny pól input i nagłówków
-        document.getElementById('input-field').value = '';
-        document.getElementById('history-log').textContent = '';
-        document.getElementById('val-avg').textContent = "--";
-        document.getElementById('val-cg').textContent = "--";
-        document.getElementById('val-cgk').textContent = "--";
-        document.getElementById('counter').textContent = "0/--";
-        
-        // 4. Powrót do startu bez przeładowania (Smooth SPA transition)
-        changeScreen('machine-select-screen');
-        
-        console.log("Aplikacja zresetowana pomyślnie.");
-    }
+function resetAppToStart(noScreenName = 'measurement-screen') {
+// Zamiast confirm() można w przyszłości wstawić ładny modal HTML
+	askUser("Sesja pomiarowa nadal trwa...", "Czy na pewno chcesz przerwać i usunąć wszystkie dane obecnej sesji?",
+		() => {
+		
+		// 1. Czyszczenie magazynu trwałego
+		localStorage.removeItem(LOCALSTORAGE_KEY);
+		
+		resetSessionObject();
+		
+		// 3. Reset wizualny pól input i nagłówków
+		document.getElementById('input-field').value = '';
+		document.getElementById('history-log').textContent = '';
+		document.getElementById('val-avg').textContent = "--";
+		document.getElementById('val-cg').textContent = "--";
+		document.getElementById('val-cgk').textContent = "--";
+		document.getElementById('counter').textContent = "0/--";
+		
+		// 4. Powrót do startu bez przeładowania (Smooth SPA transition)
+		changeScreen('machine-select-screen');
+		
+		console.log("Aplikacja zresetowana pomyślnie.");
+	},
+	() => {
+		changeScreen(noScreenName);
+	},
+	true);
 }
 
-// OBSŁUGA WYBORÓW
 function handleMachineSelect(id) {
 	if (!id) return;
 		
 	session.machineID = id;
-	session.machineName = machinesDatabase[id].nazwa;
-	session.machineNr = machinesDatabase[id].nr;
+	session.machineName = machineDB[id].nazwa;
+	session.machineNr = machineDB[id].nr;
 	document.getElementById('current-machine-label').textContent = session.machineNr;
 	renderProbeButtons(id);
 	changeScreen('probe-select-screen');
 }
    
-    function renderProbeButtons(machineId) {
-		const container = document.getElementById('probe-buttons-container');
-		container.textContent = '';
-		const fragment = document.createDocumentFragment();
-		const probes = machinesDatabase[machineId].sondy;
+function renderProbeButtons(machineId) {
+	const container = document.getElementById('probe-buttons-container');
+	container.textContent = '';
+	const fragment = document.createDocumentFragment();
+	const probes = machineDB[machineId].sondy;
+	
+	for (let probeId in probes) {
+		const btn = document.createElement('button');
+		btn.className = 'btn btn-outline sonda-btn';
 		
-		for (let probeId in probes) {
-			const btn = document.createElement('button');
-			btn.className = 'btn btn-outline sonda-btn';
-			
-			const sondaId = document.createElement('span');
-			sondaId.className = 'sonda-id';
-			sondaId.textContent = probeId;
-			
-			const sondaDesc = document.createElement('span');
-			sondaDesc.className = 'sonda-desc';
-			sondaDesc.textContent = probes[probeId].nazwa_cechy;
-			
-			btn.append(sondaId, sondaDesc);
-			btn.onclick = () => {
-				session.probeID = probeId;
-				session.probe = probes[probeId].nazwa_cechy;
-				changeScreen('master-select-screen');
-			};
-			
-			fragment.append(btn);
-		}
+		const sondaId = document.createElement('span');
+		sondaId.className = 'sonda-id';
+		sondaId.textContent = probeId;
+		btn.dataset.probeId = probeId;
+		btn.dataset.machineId = machineId;
 		
-		container.append(fragment);
-	}
-
-    function handleMasterSelect(type) {
-        session.masterType = type;
-        session.masterParams = machinesDatabase[session.machineID].sondy[session.probeID][type];
-        session.grad = getPrecision(session.masterParams.graduation);
-        
-        const m = session.masterParams.master;
-        const rf = session.masterParams.rf;
-        const g = session.masterParams.graduation;
-
-        document.getElementById('measurement-title').textContent = `Pomiar Sonda: ${session.probeID}`;
-        changeScreen('test-length-screen');
-    }
-    
-    function handleTestLengthChoice(testLength) {
-		session.testLength = testLength;
-		prepareMeasurements();
-		updateStats();
-		changeScreen('measurement-screen');
-	}	
-    
-    function calculateStats(data, nominal, tolerance) {
-		const n = data.length;
-		if (n < 2) return null;
-
-		const avg = data.reduce((a, b) => a + b, 0) / n;
-		const variance = data.map(x => Math.pow(x - avg, 2)).reduce((a, b) => a + b, 0) / (n - 1);
-		const std = Math.sqrt(variance);
-
-		const epsilon = session.masterParams.graduation / 10
-		if (std < epsilon ) return { avg, cg: -9.99, cgk: -9.99, std: 0 };
-
-		const cg = (0.2 * tolerance) / (4 * std);
-		const cgk = (0.1 * tolerance - Math.abs(nominal - avg)) / (2 * std);
-
-		return { avg, cg, cgk, std };
-	}
-
-	function getPrecision(graduation){
-		if (graduation >= 1) return 0;
-		const grad = graduation.toString().split('.');
-		return grad.length > 1? grad[1].length: 0;
-	}
-
-	function prepareMeasurements() {
-		if (session.masterParams) {
-			session.measurements = [];
-			session.idealMeasurements = new Array(session.testLength).fill(session.masterParams.master);
-			
-		}
-	}
+		const sondaDesc = document.createElement('span');
+		sondaDesc.className = 'sonda-desc';
+		sondaDesc.textContent = probes[probeId].nazwa_cechy;
 		
-	function updateStats() {
-    const { measurements, idealMeasurements, masterParams, testLength, machineID, probeID } = session;
-    const n = measurements.length;
-    const m = masterParams.master;
-    const t = masterParams.rf;
-    const f = session.grad; // precyzja wyświetlania
-
-    // 1. Aktualizacja tekstowa (Szybka i bezpieczna)
-    document.getElementById('active-station-name').textContent = `${machineID} | ${probeID}`;
-    document.getElementById('counter').textContent = `${n} / ${testLength}`;
-
-    // 2. Historia pomiarów (Zamiast innerHTML w pętli - budujemy jeden fragment)
-    renderHistoryLog(measurements, m, t, f);
-
-    // 3. Obliczenia i Pigułki
-    const stats = calculateStats(measurements, m, t);
-    const ideal = calculateStats(idealMeasurements, m, t);
-
-    updateMainIndicators(stats, f);
-    updateMaxIndicators(ideal, n);
-
-    // 4. Sterowanie interfejsem (Używamy klas, nie styli inline)
-    const isFinished = n >= testLength;
-    document.getElementById('input-container').classList.toggle('hidden', isFinished);
-    document.getElementById('keypad').classList.toggle('hidden', isFinished);
-    document.getElementById('btn-final').classList.toggle('hidden', !isFinished);
-
-    if (typeof drawChart === 'function') drawChart(session.testLength);
+		btn.append(sondaId, sondaDesc);
+		fragment.append(btn);
+	}
+	
+	container.append(fragment);
 }
 
-/** * POMOCNICZE FUNKCJE (Separacja logiki od widoku)
- */
+function handleMasterSelect(type) {
+	session.masterType = type;
+	session.masterParams = machineDB[session.machineID].sondy[session.probeID][type];
+	session.grad = getPrecision(session.masterParams.graduation);
+	
+	const m = session.masterParams.master;
+	const rf = session.masterParams.rf;
+	const g = session.masterParams.graduation;
+
+	document.getElementById('measurement-title').textContent = `Pomiar Sonda: ${session.probeID}`;
+	changeScreen('test-length-screen');
+}
+
+function handleTestLengthChoice(testLength) {
+	session.testLength = testLength;
+	prepareMeasurements();
+	updateStats();
+	changeScreen('measurement-screen');
+}	
+    
+function calculateStats(data, nominal, tolerance) {
+	const n = data.length;
+	if (n < 2) return null;
+
+	const avg = data.reduce((a, b) => a + b, 0) / n;
+	const variance = data.map(x => Math.pow(x - avg, 2)).reduce((a, b) => a + b, 0) / (n - 1);
+	const std = Math.sqrt(variance);
+
+	const epsilon = session.masterParams.graduation / 10
+	if (std < epsilon ) return { avg, cg: -9.99, cgk: -9.99, std: 0 };
+
+	const cg = (0.2 * tolerance) / (4 * std);
+	const cgk = (0.1 * tolerance - Math.abs(nominal - avg)) / (2 * std);
+
+	return { avg, cg, cgk, std };
+}
+
+function getPrecision(graduation){
+	if (graduation >= 1) return 0;
+	const grad = graduation.toString().split('.');
+	return grad.length > 1? grad[1].length: 0;
+}
+
+function prepareMeasurements() {
+	if (session.masterParams) {
+		session.measurements = [];
+		session.idealMeasurements = new Array(session.testLength).fill(session.masterParams.master);
+		
+	}
+}
+		
+function updateStats() {
+	const { measurements, idealMeasurements, masterParams, testLength, machineID, probeID } = session;
+	const n = measurements.length;
+	const m = masterParams.master;
+	const t = masterParams.rf;
+	const f = session.grad; // precyzja wyświetlania
+
+	// 1. Aktualizacja tekstowa (Szybka i bezpieczna)
+	document.getElementById('active-station-name').textContent = `${machineID} | ${probeID}`;
+	document.getElementById('counter').textContent = `${n} / ${testLength}`;
+
+	// 2. Historia pomiarów (Zamiast innerHTML w pętli - budujemy jeden fragment)
+	renderHistoryLog(measurements, m, t, f);
+
+	// 3. Obliczenia i Pigułki
+	const stats = calculateStats(measurements, m, t);
+	const ideal = calculateStats(idealMeasurements, m, t);
+
+	updateMainIndicators(stats, f);
+	updateMaxIndicators(ideal, n);
+
+	// 4. Sterowanie interfejsem (Używamy klas, nie styli inline)
+	const isFinished = n >= 5;
+	document.getElementById('input-container').classList.toggle('hidden', isFinished);
+	document.getElementById('keypad').classList.toggle('hidden', isFinished);
+	document.getElementById('btn-final').classList.toggle('hidden', !isFinished);
+
+	if (typeof drawChart === 'function') drawChart(session.testLength);
+}
 
 function renderHistoryLog(measurements, master, tolerance, precision) {
     const log = document.getElementById('history-log');
-    log.textContent = ''; // Czyścimy bezpiecznie
-    const fragment = document.createDocumentFragment();
+    const currentCount = log.children.length;
+    const targetCount = measurements.length;
 
-    // Renderujemy od najnowszego (reverse)
-    [...measurements].reverse().forEach(v => {
-        const diff = Math.abs(v - master);
-        const item = document.createElement('div');
-        item.className = 'history-item';
-        item.textContent = v.toFixed(precision);
+    // Brak zmian w ilości pomiarów – nie przerenderowujemy
+    if (currentCount === targetCount) return;
 
-        // Klasy zamiast kolorów wpisanych na sztywno w JS
-        if (diff > tolerance / 2) item.classList.add('text-danger');
-        else if (diff > (tolerance * 0.1)) item.classList.add('text-warning');
-        else item.classList.add('text-success');
+    // Reset do zera (np. nowa sesja)
+    if (targetCount === 0) {
+        log.textContent = '';
+        return;
+    }
 
-        fragment.append(item);
-    });
-    log.append(fragment);
+    // Dodano nowe pomiary (najczęściej 1 po wciśnięciu ENTER)
+    if (targetCount > currentCount) {
+        // Wycinamy tylko te pomiary, których jeszcze nie ma w DOM
+        const newMeasurements = measurements.slice(currentCount);
+        const fragment = document.createDocumentFragment();
+        
+        newMeasurements.forEach(v => {
+            const diff = Math.abs(v - master);
+            const item = document.createElement('div');
+            item.className = 'history-item';
+            item.textContent = v.toFixed(precision);
+
+            if (diff > tolerance / 2) item.classList.add('text-danger');
+            else if (diff > (tolerance * 0.1)) item.classList.add('text-warning');
+            else item.classList.add('text-success');
+
+            // Dodajemy element na początek fragmentu
+            fragment.prepend(item);
+        });
+        
+        // Wrzucamy fragment na sam początek logu historii
+        log.prepend(fragment);
+    } 
+    // Cofnięto pomiar (użycie funkcji undoLast)
+    else {
+        const diff = currentCount - targetCount;
+        for (let i = 0; i < diff; i++) {
+            if (log.firstElementChild) {
+                log.firstElementChild.remove();
+            }
+        }
+    }
 }
 
 function updateMainIndicators(stats, precision) {
@@ -530,7 +598,8 @@ function updateMainIndicators(stats, precision) {
         cg: document.getElementById('val-cg'),
         cgk: document.getElementById('val-cgk'),
         indCg: document.getElementById('ind-cg'),
-        indCgk: document.getElementById('ind-cgk')
+        indCgk: document.getElementById('ind-cgk'),
+        bias: document.getElementById('val-bias')
     };
 
     if (!stats) {
@@ -543,6 +612,15 @@ function updateMainIndicators(stats, precision) {
     // Obsługa Twojego nowego "null" z calculateStats
     elements.cg.textContent = stats.cg === null ? "∞" : stats.cg.toFixed(2);
     elements.cgk.textContent = stats.cgk === null ? "∞" : stats.cgk.toFixed(2);
+    
+    const bias = stats.avg - session.masterParams.master;
+    elements.bias.textContent = bias.toFixed(precision);
+    
+    const tol = session.masterParams.rf * 0.1;
+
+	elements.bias.classList.toggle('text-success', Math.abs(bias) < tol);
+	elements.bias.classList.toggle('text-warning', Math.abs(bias) >= tol && Math.abs(bias) < tol * 2);
+	elements.bias.classList.toggle('text-danger', Math.abs(bias) >= tol * 2);
 
     // Zamiast borderLeftColor - dodajemy klasę stanu
     if (stats.cg !== null) {
@@ -581,10 +659,6 @@ function updateMaxIndicators(ideal, n) {
     mInfo.append(divCg, divCgk);
 }
 	
-/**
- * Pobiera kolory zdefiniowane w CSS. 
- * Robimy to RAZ na początku rysowania, by nie obciążać przeglądarki w pętlach.
- */
 function getChartTheme() {
     const s = getComputedStyle(document.documentElement);
     return {
@@ -642,8 +716,23 @@ function drawChart(maxChartSteps = 50, canvasId = 'chart_canva') {
     const yMinT = yScale(m - t/2);
     const yMaster = yScale(m);
 
-    ctx.fillStyle = theme.warningZone;
-    ctx.fillRect(0, yMaxT, w, yMinT - yMaxT);
+    // --- STREFA TOLERANCJI Z GRADIENTEM ---
+
+// 1. Gradient górny: od górnej granicy tolerancji (yMaxT) do linii Master (yMaster)
+const gradTop = ctx.createLinearGradient(0, yMaxT, 0, yMaster);
+gradTop.addColorStop(0, theme.warningZone);      // Kolor przy krawędzi (np. czerwony/pomarańczowy)
+gradTop.addColorStop(1, 'rgba(0, 0, 0, 0)');     // Pełne wygaszenie do przezroczystości na środku
+
+ctx.fillStyle = gradTop;
+ctx.fillRect(0, yMaxT, w, yMaster - yMaxT);
+
+// 2. Gradient dolny: od linii Master (yMaster) do dolnej granicy tolerancji (yMinT)
+const gradBottom = ctx.createLinearGradient(0, yMaster, 0, yMinT);
+gradBottom.addColorStop(0, 'rgba(0, 0, 0, 0)');  // Start od przezroczystości na środku
+gradBottom.addColorStop(1, theme.warningZone);   // Powrót do koloru przy dolnej krawędzi
+
+ctx.fillStyle = gradBottom;
+ctx.fillRect(0, yMaster, w, yMinT - yMaster);
 
     const yGreenHigh = yScale(m + greenZoneT);
     const yGreenLow = yScale(m - greenZoneT);
@@ -750,46 +839,142 @@ function changeScreen(screenId) {
     }
 }
 
-
 const ChartEngine = {
     NS: "http://www.w3.org/2000/svg",
     CONFIG: {
         width: 800, height: 400,
-        padding: { top: 40, right: 60, bottom: 40, left: 60 },
+        padding: { top: 50, right: 80, bottom: 40, left: 60 }, // Lewy margines pozwala na etykiety siatki
         pointRadius: 4
     },
 
-    // ZMIANA: Zwraca obiekt SVGElement zamiast stringa
-    generateTrendChart: function(data, master, rf) {
+    generateTrendChart: function(data, master, rf, precision = 3, title='') {
         const { width, height, padding } = this.CONFIG;
         const svg = document.createElementNS(this.NS, "svg");
         svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+        svg.style.fontFamily = "monospace"; 
 
         if (!data || data.length === 0) {
-            const text = document.createElementNS(this.NS, "text");
-            text.setAttribute("x", "50%"); text.setAttribute("y", "50%");
+            const text = this._createText("50%", "50%", "Brak danych", "#666");
             text.setAttribute("text-anchor", "middle");
-            text.textContent = "Brak danych";
             svg.appendChild(text);
             return svg;
         }
+        
+		const formatter = new Intl.DateTimeFormat('pl-PL', {
+			year: 'numeric',
+			month: '2-digit',
+			day: '2-digit',
+			hour: '2-digit',
+			minute: '2-digit',
+			hour12: false // format 24h
+		});
 
-        const limits = { upper: master + (rf / 2), lower: master - (rf / 2) };
+		// Wynik: "22.03.2026, 13:57" - format polski
+		// Można go łatwo "posprzątać" zamieniając kropki na myślniki
+		const formatted = formatter.format(session.date).replace(',', '');
+
+		const t = rf;
+        const limits = { upper: master + (t / 2), lower: master - (t / 2) };
+        const greenZoneT = t * 0.1;
+        const greenLimits = { upper: master + greenZoneT, lower: master - greenZoneT };
+
         const { min, max } = this._calculateScale(data, limits);
         
         const getX = (i) => padding.left + (i / (data.length > 1 ? data.length - 1 : 1)) * (width - padding.left - padding.right);
         const getY = (val) => height - padding.bottom - ((val - min) / (max - min)) * (height - padding.top - padding.bottom);
+        
+        //-- Tytuł ---
+        svg.appendChild(this._createText(padding.left, Math.round(padding.top / 2) - 10, "Wykres trendu", "#666", 0, "16px"));
+        
+        // -- Podtyuł ---
+        svg.appendChild(this._createText(padding.left, Math.round(padding.top / 2) + 10, `${session.machineNr} | ${session.probeID} | ${session.masterType} | ${formatted}`, "#666", 0, "11px"));
 
-        // Tło tolerancji
-        svg.appendChild(this._createRect(padding.left, getY(limits.upper), width - padding.left - padding.right, getY(limits.lower) - getY(limits.upper), "rgba(34, 197, 94, 0.1)"));
-        // Linia Master
-        svg.appendChild(this._createLine(padding.left, getY(master), width - padding.right, getY(master), "#22c55e", "2", "5,5"));
+        // --- 1. STREFY TŁA ---
+        svg.appendChild(this._createRect(
+			padding.left, padding.top, width - padding.right - padding.left, height - padding.bottom - padding.top,
+			"rgba(255,10,0,0.1)"
+			)
+		)
+        
+        svg.appendChild(this._createRect(
+            padding.left, getY(limits.upper), 
+            width - padding.left - padding.right, getY(limits.lower) - getY(limits.upper), 
+            "rgba(255, 255, 0, 0.3)"
+        ));
 
-        // Punkty
-        data.forEach((val, i) => {
-            const isOut = val > limits.upper || val < limits.lower;
-            svg.appendChild(this._createCircle(getX(i), getY(val), this.CONFIG.pointRadius, isOut ? "#ef4444" : "#3b82f6"));
+        svg.appendChild(this._createRect(
+            padding.left, getY(greenLimits.upper), 
+            width - padding.left - padding.right, getY(greenLimits.lower) - getY(greenLimits.upper), 
+            "rgba(34, 197, 94, 0.5)"
+        ));
+        
+        // --- 1.5 SIATKA (GRID) ---
+        // Linie pionowe (pod każdym punktem)
+        data.forEach((_, i) => {
+            const x = getX(i);
+            svg.appendChild(this._createLine(x, padding.top, x, height - padding.bottom, "#d1d5db", "1"));
         });
+
+        // Linie poziome (np. 5 równych podziałów)
+        const gridSteps = 8;
+        for (let i = 0; i <= gridSteps; i++) {
+            // Obliczamy wartość i jej pozycję Y
+            const val = max - (i / gridSteps) * (max - min);
+            const y = getY(val);
+            
+            //if( i === gridSteps - 1) continue;
+            
+            // Rysujemy szarą linię pomocniczą
+            svg.appendChild(this._createLine(padding.left, y, width - padding.right, y, "#d1d5db", "1"));
+            
+            // Dodajemy etykiety osi Y po lewej stronie
+            const labelText = this._createText(padding.left - 10, y + 4, val.toFixed(precision), "#6b7280");
+            labelText.setAttribute("text-anchor", "end"); // Wyrównanie do prawej krawędzi tekstu
+            svg.appendChild(labelText);
+        }
+
+        // --- 2. LINIE REFERENCYJNE ---
+        svg.appendChild(this._createLine(padding.left, getY(limits.upper), width - padding.right + 10, getY(limits.upper), "#ef4444", "1", "5,5"));
+        svg.appendChild(this._createLine(padding.left, getY(limits.lower), width - padding.right + 10, getY(limits.lower), "#ef4444", "1", "5,5"));
+        svg.appendChild(this._createLine(padding.left, getY(master), width - padding.right + 10, getY(master), "#22c55e", "1.5"));
+
+        // --- 3. LINIA ŁĄCZĄCA PUNKTY ---
+        if (data.length > 1) {
+            const pathD = data.map((val, i) => `${i === 0 ? 'M' : 'L'} ${getX(i)} ${getY(val)}`).join(" ");
+            const path = document.createElementNS(this.NS, "path");
+            path.setAttribute("d", pathD);
+            path.setAttribute("fill", "none");
+            path.setAttribute("stroke", "rgba(56, 189, 248, 0.7)");
+            path.setAttribute("stroke-width", "1.5");
+            svg.appendChild(path);
+        }
+
+        // --- 4. PUNKTY ---
+        const pointChartLabelY = height - padding.bottom + 20;
+        let pointCounter = 1;
+        const isEven = (x) => x % 2 === 0;
+        
+        data.forEach((val, i) => {
+            const diff = Math.abs(val - master);
+            let color = "#ffffff"; 
+            if (diff > t / 2) color = "#ef4444"; 
+            else if (diff > greenZoneT) color = "#eab308"; 
+
+            const circle = this._createCircle(getX(i), getY(val), this.CONFIG.pointRadius, color);
+            circle.setAttribute("stroke", "#000"); 
+            svg.appendChild(circle);
+            
+            if (isEven(pointCounter)){
+				svg.appendChild(this._createText(getX(i), pointChartLabelY, `${pointCounter}`, "#666", -45, "10px"));
+			}
+            pointCounter++;
+        });
+
+        // --- 5. ETYKIETY WARTOŚCI GŁÓWNYCH ---
+        const labelX = width - padding.right + 15;
+        svg.appendChild(this._createText(labelX, getY(limits.upper) + 4, `T+: ${limits.upper.toFixed(precision)}`, "#666"));
+        svg.appendChild(this._createText(labelX, getY(limits.lower) + 4, `T-: ${limits.lower.toFixed(precision)}`, "#666"));
+        svg.appendChild(this._createText(labelX, getY(master) + 4, `M: ${master.toFixed(precision)}`, "#16a34a"));
 
         return svg;
     },
@@ -798,7 +983,6 @@ const ChartEngine = {
         const el = document.createElementNS(this.NS, "circle");
         el.setAttribute("cx", cx); el.setAttribute("cy", cy);
         el.setAttribute("r", r); el.setAttribute("fill", fill);
-        el.setAttribute("stroke", "#fff");
         return el;
     },
 
@@ -819,16 +1003,44 @@ const ChartEngine = {
         return el;
     },
 
+    _createText: function(x, y, textContent, fill, angle=0, fontSize="11px") {
+        const el = document.createElementNS(this.NS, "text");
+        el.setAttribute("x", x); el.setAttribute("y", y);
+        el.setAttribute("fill", fill);
+        el.setAttribute("font-size", fontSize);
+        el.textContent = textContent;
+        
+        if (angle !== 0) {
+			// rotate(kąt, środek_obrotu_x, środek_obrotu_y)
+			el.setAttribute("transform", `rotate(${angle}, ${x}, ${y})`);
+		}
+        
+        return el;
+    },
+
     _calculateScale: function(data, limits) {
         const values = [...data, limits.upper, limits.lower];
         const min = Math.min(...values), max = Math.max(...values);
-        const m = (max - min) * 0.2 || 0.1;
+        const m = (max - min) * 0.1 || 0.1; 
         return { min: min - m, max: max + m };
     }
 };
 
 const ReportBuilder = {
     // Główna funkcja budująca strukturę DOM
+    
+    _buildContent: function(session, stats) {
+        const container = document.createElement('div');
+        container.className = 'report-wrapper';
+
+        container.appendChild(this._createHeader(session));
+        container.appendChild(this._createStatsGrid(session, stats));
+        container.appendChild(this._createVisuals(session));
+        container.appendChild(this._createMeasurementsGrid(session.measurements, session.masterParams.master, session.masterParams.rf));
+
+        return container;
+    },
+    // Używane do renderowania raportu wewnątrz aplikacji (raportPage)
     buildDOM: function(session, stats) {
         const fragment = document.createDocumentFragment();
         
@@ -836,15 +1048,7 @@ const ReportBuilder = {
         style.textContent = this._getStyles();
         fragment.appendChild(style);
 
-        const container = document.createElement('div');
-        container.className = 'report-wrapper';
-
-        container.appendChild(this._createHeader(session));
-        container.appendChild(this._createStatsGrid(session, stats));
-        container.appendChild(this._createVisuals(session));
-        container.appendChild(this._createTable(session.measurements));
-
-        fragment.appendChild(container);
+        fragment.appendChild(this._buildContent(session, stats));
         return fragment;
     },
 
@@ -865,8 +1069,8 @@ const ReportBuilder = {
 
         const data = [
             { label: "Średnia", val: stats.avg.toFixed(session.grad) },
-            { label: "Cg", val: stats.cg?.toFixed(3) || "∞" },
-            { label: "Cgk", val: stats.cgk?.toFixed(3) || "∞" },
+            { label: "Cg", val: stats.cg?.toFixed(2) || "∞" },
+            { label: "Cgk", val: stats.cgk?.toFixed(2) || "∞" },
             { label: "Status", val: stats.cgk >= 1.33 ? "OK" : "NOK", cls: stats.cgk >= 1.33 ? "pass" : "fail" }
         ];
 
@@ -887,41 +1091,65 @@ const ReportBuilder = {
         const svg = ChartEngine.generateTrendChart(
             session.measurements, 
             session.masterParams.master, 
-            session.masterParams.rf
+            session.masterParams.rf,
+            session.grad // <-- DODANO PRZEKAZYWANIE PRECYZJI
         );
         div.appendChild(svg);
         return div;
     },
 
-    _createTable: function(data) {
-        const table = document.createElement('table');
-        const tbody = document.createElement('tbody');
-        data.forEach((val, i) => {
-            const tr = document.createElement('tr');
-            const td1 = document.createElement('td'); td1.textContent = i + 1;
-            const td2 = document.createElement('td'); td2.textContent = val.toFixed(4);
-            tr.append(td1, td2);
-            tbody.appendChild(tr);
-        });
-        table.appendChild(tbody);
-        return table;
-    },
+  _createMeasurementsGrid: function(measurements, master, rf) {
+    const container = document.createElement('div');
+    container.className = 'measurements-grid';
 
+    measurements.forEach((value, index) => {
+        const item = document.createElement('div');
+        
+        // Logika sprawdzania poprawności (isCorrect) na bieżąco:
+        const diff = Math.abs(value - master);
+        const isCorrect = diff <= rf;
+        
+        const statusClass = isCorrect ? 'item-pass' : 'item-fail';
+        item.className = `measurement-item ${statusClass}`;
+        
+        // Teraz value jest liczbą, więc .toFixed(3) zadziała bez błędu
+        item.innerHTML = `
+            <span class="idx">${index + 1}</span>
+            <span class="val">${value.toFixed(3)}</span>
+        `;
+        container.appendChild(item);
+    });
+
+    return container;
+},
     /**
      * Nowa funkcja: Generuje pełny string HTML (np. do udostępniania)
      * wykorzystując już istniejącą logikę buildDOM
      */
     generateFullHTML: function(session, stats) {
-        const doc = document.implementation.createHTMLDocument("Raport");
-        const content = this.buildDOM(session, stats);
-        doc.body.appendChild(content);
-        return `<!DOCTYPE html>\n${doc.documentElement.outerHTML}`;
+        // Zamiast manipulować obiektem Document, bezpieczniej i czytelniej jest zbudować czysty string
+        const contentDOM = this._buildContent(session, stats);
+        
+        return `<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Raport SPA - ${session.machineNr} - ${session.probeID}</title>
+    <style>
+        ${this._getStyles()}
+    </style>
+</head>
+<body style="margin: 0; background-color: #f0f2f5;">
+    ${contentDOM.outerHTML}
+</body>
+</html>`;
     },
 
     _getStyles: function() {
     return `
-        /* 1. Definicja zmiennych (Motyw Jasny - domyślny) */
-        :host {
+        /* Zmienne przypisane do głównego kontenera, zamiast do :host */
+        .report-wrapper {
             --report-bg: #ffffff;
             --report-text: #1a1a1a;
             --report-muted: #666666;
@@ -936,98 +1164,147 @@ const ReportBuilder = {
             --color-fail-bg: #ffeef0;
             --color-fail-text: #991b1b;
             --color-fail-border: #fecaca;
+            
+            display: block;
+            padding: 20px;
+            background-color: var(--report-bg); 
+            color: var(--report-text);
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            max-width: 10000px;
+            margin: 0 auto;
+            box-sizing: border-box;
+            overflow-x: hidden;
         }
 
-        /* 2. Motyw Ciemny (automatyczny) */
         @media (prefers-color-scheme: dark) {
-            :host {
-                --report-bg: #121212;
+            .report-wrapper {
+                --report-bg: #1e1e1e;
                 --report-text: #e0e0e0;
                 --report-muted: #a0a0a0;
                 --card-border: #333333;
                 --table-border: #444444;
-                
-                --color-pass-bg: #062d14;
-                --color-pass-text: #4ade80;
-                --color-pass-border: #166534;
-                
-                --color-fail-bg: #3f0e0e;
-                --color-fail-text: #f87171;
-                --color-fail-border: #991b1b;
             }
         }
 
-        /* 3. Style strukturalne */
-        .report-wrapper { 
-            padding: 30px; 
-            background-color: var(--report-bg); 
-            color: var(--report-text);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            line-height: 1.5;
+        header { 
+            margin-bottom: 25px; 
+            border-bottom: 2px solid var(--accent-primary); 
+            padding-bottom: 15px; 
         }
+        
+        h1 { margin: 0; font-size: 1.6rem; color: var(--accent-primary); }
+        header p { margin: 5px 0; color: var(--report-muted); font-size: 0.9rem; }
 
-        header { margin-bottom: 30px; border-bottom: 2px solid var(--card-border); padding-bottom: 10px; }
-        h1 { margin: 0; font-size: 24px; color: var(--accent-primary); }
-        header p { margin: 5px 0; color: var(--report-muted); font-size: 14px; }
-
-        .stats-grid { display: flex; gap: 15px; margin: 25px 0; }
+        .stats-grid { 
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 12px;
+            margin: 20px 0;
+        }
+        
         .stat-card { 
             border: 1px solid var(--card-border); 
             padding: 15px; 
-            flex: 1; 
-            border-radius: 8px;
+            border-radius: 10px;
             display: flex; 
             flex-direction: column; 
             gap: 5px;
+            background: var(--report-bg);
         }
-        .stat-card span { font-size: 12px; text-transform: uppercase; color: var(--report-muted); font-weight: 600; }
-        .stat-card strong { font-size: 18px; }
+
+        .stat-card span { 
+            font-size: 11px; 
+            text-transform: uppercase; 
+            color: var(--report-muted); 
+            font-weight: 700; 
+            letter-spacing: 0.5px;
+        }
+        
+        .stat-card strong { font-size: 1.3rem; }
 
         .pass { background-color: var(--color-pass-bg); color: var(--color-pass-text); border-color: var(--color-pass-border); }
         .fail { background-color: var(--color-fail-bg); color: var(--color-fail-text); border-color: var(--color-fail-border); }
 
-        .chart-container { margin: 30px 0; border: 1px solid var(--card-border); border-radius: 8px; padding: 15px; background: #fff; }
+        .chart-container { 
+            margin: 25px 0; 
+            border: 1px solid var(--card-border); 
+            border-radius: 12px; 
+            padding: 15px; 
+            background: #ffffff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        
         svg { width: 100%; height: auto; display: block; }
 
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
-        th { background-color: var(--card-border); text-align: left; padding: 10px; }
-        td { border-bottom: 1px solid var(--table-border); padding: 8px 10px; }
+        /* Styl ekranowy - kafelki obok siebie */
+.measurements-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 8px;
+    margin-top: 20px;
+}
 
-        /* 4. Obsługa Wydruku */
-        @media print {
-            :host {
-                --report-bg: #ffffff;
-                --report-text: #000000;
-                --card-border: #cccccc;
-                --table-border: #000000;
-            }
-            
-            .report-wrapper { padding: 0; }
-            
-            .stat-card { 
-                border: 1px solid #000 !important; 
-                background: none !important; 
-                color: #000 !important;
-                break-inside: avoid;
-            }
-            
-            .chart-container { 
-                border: 1px solid #000; 
-                break-inside: avoid;
-            }
+.measurement-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: var(--report-bg);
+    border: 1px solid var(--card-border);
+    font-family: monospace;
+    font-size: 0.9rem;
+}
 
-            /* Ukrywamy elementy interaktywne jeśli są w Shadow DOM */
-            button, .no-print { display: none !important; }
+.measurement-item .idx {
+    color: var(--report-muted);
+    font-size: 0.7rem;
+    font-weight: bold;
+}
 
-            /* Zapewnienie czerni tekstu dla lepszej kserokopii */
-            h1, strong, td { color: #000 !important; }
-            
-            @page {
-                margin: 1.5cm;
-            }
+.measurement-item .val {
+    font-weight: bold;
+}
+
+/* Kolory specyficzne dla kafelków */
+.item-pass { border-left: 3px solid var(--color-pass-text); }
+.item-fail { border-left: 3px solid var(--color-fail-text); background: var(--color-fail-bg); }
+
+/* --- STYL DO DRUKU (A4) --- */
+@media print {
+    .measurements-grid {
+        display: block; /* Wyłączamy grid na rzecz kolumn tekstowych */
+        column-count: 5; /* Aż 5 kolumn pomiarów obok siebie na A4! */
+        column-gap: 10px;
+        orphans: 3;
+        widows: 3;
+    }
+
+    .measurement-item {
+        display: flex;
+        break-inside: avoid; /* Ważne: kafelek nie może być przecięty między kolumnami */
+        margin-bottom: 4px;
+        padding: 4px 6px;
+        font-size: 10px;
+        border: 1px solid #eee !important;
+        -webkit-print-color-adjust: exact;
+    }
+    
+    .item-fail {
+        background-color: #ffeef0 !important;
+        color: #991b1b !important;
+    }
+}
+
+        @media (max-width: 600px) {
+            .table-print-container { column-count: 1; }
+        }
+        @media (max-width: 400px) {
+            .report-wrapper { padding: 10px; }
+            .stats-grid { grid-template-columns: 1fr; } 
         }
     `;
-}
+    }
 };
 
 function raportPage() {
@@ -1049,16 +1326,24 @@ function raportPage() {
     const reportFragment = ReportBuilder.buildDOM(session, stats);
     shadow.appendChild(reportFragment);
 
-    changeScreen('raport-screen');
+    changeScreen('report-screen');
 }
 
 async function handleFinalizeAndShare() {
-    const reportHtml = generateFullHTML();
-    const blob = new Blob([reportHtml], { type: 'text/html' });
+    const stats = calculateStats(
+        session.measurements, 
+        session.masterParams.master, 
+        session.masterParams.rf
+    );
+    
+    // Używamy funkcji zwracającej tekst (HTML), a nie DocumentFragment
+    const reportHtml = ReportBuilder.generateFullHTML(session, stats);
+    
+    // Dodano charset=utf-8 dla bezpieczeństwa polskich znaków
+    const blob = new Blob([reportHtml], { type: 'text/html;charset=utf-8' });
     const fileName = `Raport_${session.machineNr}_${session.probeID}_${new Date().toISOString().slice(0,10)}.html`;
 
     try {
-        // Sprawdzamy czy przeglądarka wspiera Web Share API dla plików
         if (navigator.canShare && navigator.canShare({ files: [new File([blob], fileName, { type: 'text/html' })] })) {
             const file = new File([blob], fileName, { type: 'text/html' });
             await navigator.share({
@@ -1067,51 +1352,89 @@ async function handleFinalizeAndShare() {
                 text: `Przesyłam raport metrologiczny dla: ${session.machineNr}`
             });
         } else {
-            // Plan B: Jeśli Share API nie jest wspierane lub nie obsługuje plików (np. niektóre przeglądarki desktopowe)
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
             link.download = fileName;
             link.click();
             URL.revokeObjectURL(link.href);
-            alert("Raport został pobrany do pamięci urządzenia.");
         }
     } catch (err) {
         console.error("Błąd udostępniania:", err);
-        // Nie przerywamy procesu, jeśli użytkownik po prostu anulował okno udostępniania
     }
-
-    // Zamiast reload(), pytamy o nową sesję
-    if (confirm("Raport przetworzony. Czy chcesz zakończyć tę sesję i rozpocząć nowy pomiar?")) {
-        localStorage.removeItem(LOCALSTORAGE_KEY);
-        resetSessionObject();
-        changeScreen('machine-select-screen');
-    }
+    
+    askUser("Raport został przetworzony", "Zakończyć tą sesję i rozpocząć nową", 
+        () => { 
+            localStorage.removeItem(LOCALSTORAGE_KEY);
+            resetSessionObject();
+            changeScreen('machine-select-screen');
+        },
+        () => {
+            changeScreen('measurement-screen');
+        }
+    );
 }
-// --- AUTOMATYCZNE ODŚWIEŻANIE PRZY ZMIANIE TRYBU DARK/LIGHT ---
+
+function askUser(title, question, yesAction, noAction, destructiveYes = false) {
+    const titleEl = document.getElementById('yes-no-screen-title');
+    const subtitleEl = document.getElementById('yes-no-screen-subtitle');
+    const yesBtn = document.getElementById('yes-no-screen-yes-btn');
+    const noBtn = document.getElementById('yes-no-screen-no-btn');
+    
+	yesBtn.classList.toggle('btn-success', !destructiveYes);
+	yesBtn.classList.toggle('btn-fail', destructiveYes);
+	
+	noBtn.classList.toggle('btn-success', destructiveYes);
+	noBtn.classList.toggle('btn-fail', !destructiveYes);
+
+    // 1. Bezpieczne wpisanie tekstu (Pole, nie funkcja!)
+    titleEl.textContent = title;
+    subtitleEl.textContent = question;
+
+    // 2. Przypisanie akcji (z nadpisaniem poprzednich, by uniknąć dublowania)
+    yesBtn.onclick = () => {
+        if (typeof yesAction === 'function') yesAction();
+        _cleanupAskButtons(yesBtn, noBtn);
+    };
+
+    noBtn.onclick = () => {
+        if (typeof noAction === 'function') noAction();
+        _cleanupAskButtons(yesBtn, noBtn);
+    };
+
+    // 3. Zmiana ekranu
+    changeScreen('yes-no-screen');
+}
+
+function _cleanupAskButtons(b1, b2) {
+    b1.onclick = null;
+    b2.onclick = null;
+}	
+	
 const themeWatcher = window.matchMedia('(prefers-color-scheme: dark)');
 themeWatcher.addEventListener('change', () => drawChart(session.testLength));
 
 window.onload = init;
     
-    // Obsługa klawiatury fizycznej
 window.addEventListener('keydown', (event) => {
     const key = event.key.toUpperCase();
+    if (session.currentScreen !== 'measurement-screen') return;
 
+	
     // 1. Cyfry, kropka i minus
     if (/^[0-9.\-]$/.test(key)) {
         handleInput(key);
     } 
     // 2. Enter -> DODAJ POMIAR
-    else if (key === 'Enter') {
+    else if (key === 'ENTER') {
         event.preventDefault(); // Zapobiega np. wysłaniu formularza
         handleInput('ENTER');
     } 
     // 3. Backspace -> funkcja C (usuwanie znaku)
-    else if (key === 'Backspace') {
+    else if (key === 'BACKSPACE') {
         handleInput('C');
     }
     // 4. Escape -> może służyć do czyszczenia całego pola (opcjonalnie)
-    else if (key === 'Escape') {
+    else if (key === 'ESCAPE') {
         document.getElementById('input-field').value = '';
     }
     else if( key === 'U') {
