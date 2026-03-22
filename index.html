@@ -15,153 +15,149 @@
 <body>
 
 <main>
-    <section id="machine-select-screen" class="active">
+<section id="machine-select-screen" class="active">
     <header><h2>Krok 1: Wybór Maszyny</h2></header>
     <p class="centered-label">Wybierz maszynę z listy:</p>
-    <input id="machine-select-input" class="search-input" placeholder="Wyszukaj maszynę..." onchange="searchMachine(this)">
+    <input id="machine-select-input" class="search-input" placeholder="Wyszukaj maszynę...">
     <div id="machine-buttons-container" class="sonda-grid">
-        </div>
-</section>
-
-    <section id="probe-select-screen">
-        <header>
-            <button class="btn btn-secondary" onclick="changeScreen('machine-select-screen')">Wstecz</button>
-            <h2>Krok 2: Wybór sondy</h2>
-            <p id="current-machine-label" class="text-primary"></p>
-        </header>
-        <div id="probe-buttons-container" class="sonda-grid"></div>
-    </section>
-    
-    <section id="master-select-screen">
-        <header>
-            <button class="btn btn-secondary btn-back" onclick="changeScreen('probe-select-screen')">
-                ← Wstecz
-            </button>
-            <h2>Krok 3: Wybór testu</h2>
-        </header>
-        <footer class="sonda-grid">
-			<button class="btn btn-outline sonda-btn" onclick="handleMasterSelect('zero')">ZERO Master</button>
-			<button class="btn btn-outline sonda-btn" onclick="handleMasterSelect('span')">SPAN Master</button>
-		</footer>
-        
-    </section>
-    
-    <section id="test-length-screen">
-		<header>
-			<button class="btn btn-secondary btn-back" onclick="changeScreen('master-select-screen')">
-                ← Wstecz
-            </button>
-            <h2>Krok 4: Długość testu</h2>
-		</header>
-		<button class="btn btn-outline" onclick="handleTestLengthChoice(30)">SKRÓCONY - 30 pomiarów</button>
-        <button class="btn btn-outline" onclick="handleTestLengthChoice(50)">PEŁNY - 50 pomiarów</button>
-
-    </section>
-
-    <section id="measurement-screen">
-        <header class="header-compact">
-        <button class="btn-nav-mini" onclick="measurementsBack()" title="Wstecz">←</button>
-        <div class="header-title-area">
-            <h2 id="measurement-title" class="title-mini">Sonda: --</h2>
-            <span id="active-station-name" class="text-muted-xs">Stacja</span>
-        </div>
-        <div class="header-counter-area">
-            <span id="counter" class="counter-badge">0/50</span>
-        </div>
-    </header>
-
-        <div class="status-bar">
-            <div id="ind-cg" class="indicator critical"> 
-                <span class="ind-label">C<sub>G</sub> (4σ)</span>
-                <span id="val-cg" class="ind-val">--</span>
-            </div>
-            <div id="ind-cgk" class="indicator critical">
-                <span class="ind-label">C<sub>GK</sub></span>
-                <span id="val-cgk" class="ind-val">--</span>
-            </div>
-            <div class="indicator">
-                <span class="ind-label">ŚREDNIA</span>
-                <span id="val-avg" class="ind-val">--</span>
-            </div>
-        </div>
-		
-		<div class="chart-and-indicators-area">
-			<canvas id="chart_canva"></canvas>
-			<div id="measurement-info" class="measurement-info-box"></div>
-		</div>
-		
-        <div class="control-panel">
-			<div class="history-container">
-				<span class="text-muted-sm">Ostatnie odczyty:</span>
-				<div id="history-log" class="history-log-row">
-					</div>
-			</div>
-
-			<div id="input-container" class="input-container-rel">
-				<input type="text" id="input-field" class="input-display" placeholder="0.000" readonly>
-				<button id="undo-btn" class="btn-undo-inline" onclick="undoLast()" title="Cofnij">⟲</button>
-			</div>
-
-			<div id="keypad" class="keypad-holder"></div>
-		</div>
-        
-        <button id="btn-final" class="btn btn-success hidden" onclick="raportPage()">
-            ZAKOŃCZ I WYŚLIJ RAPORT
-        </button>
-    </section>
-    
-    <section id="confirm-leave-screen">
-		<header>
-            <h2>Przerwać pomiary?</h2>
-        </header>
-        <footer>
-			<button class="btn btn-outline btn-warning-leave" onclick="resetAppToStart()">Przerwij</button>
-			<button class="btn btn-outline btn-continue" onclick="changeScreen('measurement-screen')">Wróć do pomiarów</button>
-			<button class="btn btn-outline" onclick="raportPage()">Wyślij raport</button>
-		</footer>
-    </section>
-    
-    <section id="raport-screen">
-		<header>
-			<h2>Raport</h2>
-			<div class="report-header-btn" >
-				<button onclick="changeScreen('measurement-screen')" class="btn btn-secondary btn-back">Powrót</button>
-				<button onclick="changeScreen('confirm-leave-screen')" class="btn btn-secondary btn-back">Odrzuć</button>
-				<button onclick="handleFinalizeAndShare()" class="btn btn-primary">Udostępnij raport</button>
-            </div>
-		</header>
-		<div id="report-host" style="height: calc(100% - 70px); overflow-y: auto; padding: 10px;"></div>
-    </section>
-    	
-	<section id="session-expired-screen" class="screen">
-    <div class="card shadow" style="text-align: center; padding: 2rem;">
-        <div id="expired-icon" style="font-size: 3rem; margin-bottom: 1rem;">🕒</div>
-        <h2 id="expired-title" style="color: var(--primary-color);">Sesja wygasła</h2>
-        <p id="expired-desc" style="margin-bottom: 2rem; color: var(--text-muted);"></p>
-        
-        <div id="expired-actions" style="display: flex; flex-direction: column; gap: 10px;">
-            <button id="btn-save-expired" class="btn btn-success btn-block" style="display: none;" onclick="handleExpiredDownload()">
-                💾 Pobierz zapomniany raport
-            </button>
-            
-            <button class="btn btn-primary btn-block" onclick="handleStartNewAfterExpired()">
-                🆕 Rozpocznij nowy pomiar
-            </button>
-        </div>
+		<div id="machine-select-empty-result" class="empty-result-msg hidden">brak wyników...</div>
     </div>
 </section>
 
-<section id="yes-no-screen">
+<section id="probe-select-screen">
 	<header>
-		<h2 id="header-yes-no">--</h2>
-		<p id="header-yes-no-expl" >--</p>
+		<button class="btn btn-secondary" onclick="changeScreen('machine-select-screen')">Wstecz</button>
+		<h2>Krok 2: Wybór sondy</h2>
+		<p id="current-machine-label" class="text-primary"></p>
 	</header>
-	<footer>
-		<button class="btn btn-outline btn-outline-success"></button>
+	<div id="probe-buttons-container" class="sonda-grid"></div>
+</section>
+
+<section id="master-select-screen">
+	<header>
+		<button class="btn btn-secondary" onclick="changeScreen('probe-select-screen')">
+			← Wstecz
+		</button>
+		<h2>Krok 3: Wybór testu</h2>
+	</header>
+	<footer class="sonda-grid">
+		<button class="btn btn-outline sonda-btn" onclick="handleMasterSelect('zero')">ZERO Master</button>
+		<button class="btn btn-outline sonda-btn" onclick="handleMasterSelect('span')">SPAN Master</button>
+	</footer>
+	
+</section>
+
+<section id="test-length-screen">
+	<header>
+		<button class="btn btn-secondary" onclick="changeScreen('master-select-screen')">
+			← Wstecz
+		</button>
+		<h2>Krok 4: Długość testu</h2>
+	</header>
+	<footer class="sonda-grid">
+		<button class="btn btn-outline sonda-btn" onclick="handleTestLengthChoice(30)">SKRÓCONY - 30 pomiarów</button>
+		<button class="btn btn-outline sonda-btn" onclick="handleTestLengthChoice(50)">PEŁNY - 50 pomiarów</button>
 	</footer>
 </section>
-</main>
+
+<section id="measurement-screen">
+	<header class="header-compact">
+		<button class="btn-nav-mini" onclick="resetAppToStart()" title="Wstecz">←</button>
+		<div class="header-title-area">
+			<h2 id="measurement-title" class="title-mini">Sonda: --</h2>
+			<span id="active-station-name" class="text-muted-xs">Stacja</span>
+		</div>
+		<div class="header-counter-area">
+			<span id="counter" class="counter-badge">0/50</span>
+		</div>
+	</header>
+
+	<div class="status-bar">
+		<div id="ind-cg" class="indicator critical"> 
+			<span class="ind-label">C<sub>G</sub> (4σ)</span>
+			<span id="val-cg" class="ind-val">--</span>
+		</div>
+		<div id="ind-cgk" class="indicator critical">
+			<span class="ind-label">C<sub>GK</sub></span>
+			<span id="val-cgk" class="ind-val">--</span>
+		</div>
+		<div class="indicator">
+			<span class="ind-label">ŚREDNIA</span>
+			<span id="val-avg" class="ind-val">--</span>
+		</div>
+		<div class="indicator">
+			<span class="ind-label">BIAS</span>
+			<span id="val-bias" class="ind-val">--</span>
+		</div>
+	</div>
 	
-</script>
+	<div class="chart-and-indicators-area">
+		<canvas id="chart_canva"></canvas>
+		<div id="measurement-info" class="measurement-info-box"></div>
+	</div>
+	
+	<div class="control-panel">
+		<div class="history-container">
+			<span class="text-muted-sm">Ostatnie odczyty:</span>
+			<div id="history-log" class="history-log-row">
+				</div>
+		</div>
+
+		<div id="input-container" class="input-container-rel">
+			<input type="text" id="input-field" class="input-display" placeholder="0.000" readonly>
+			<button id="undo-btn" class="btn-undo-inline" onclick="undoLast()" title="Cofnij">⟲</button>
+		</div>
+
+		<div id="keypad" class="keypad-holder"></div>
+	</div>
+	
+	<button id="btn-final" class="btn btn-success hidden" onclick="raportPage()">
+		ZAKOŃCZ I WYŚLIJ RAPORT
+	</button>
+</section>
+
+
+
+<section id="report-screen">
+	<header>
+		<h2>Raport</h2>
+		<div class="report-header-btn" >
+			<button onclick="changeScreen('measurement-screen')" class="btn btn-secondary btn-back">Powrót</button>
+			<button onclick="resetAppToStart('report-screen')" class="btn btn-secondary btn-back">Odrzuć</button>
+			<button onclick="handleFinalizeAndShare()" class="btn btn-primary">Udostępnij raport</button>
+		</div>
+	</header>
+	<div id="report-host" style="height: calc(100% - 70px); overflow-y: auto; padding: 10px;"></div>
+</section>
+	
+<section id="session-expired-screen" class="screen">
+<div class="card shadow" style="text-align: center; padding: 2rem;">
+	<div id="expired-icon" style="font-size: 3rem; margin-bottom: 1rem;">🕒</div>
+	<h2 id="expired-title" style="color: var(--primary-color);">Sesja wygasła</h2>
+	<p id="expired-desc" style="margin-bottom: 2rem; color: var(--text-muted);"></p>
+	
+	<div id="expired-actions" style="display: flex; flex-direction: column; gap: 10px;">
+		<button id="btn-save-expired" class="btn btn-success btn-block" style="display: none;" onclick="handleExpiredDownload()">
+			💾 Pobierz zapomniany raport
+		</button>
+		
+		<button class="btn btn-primary btn-block" onclick="handleStartNewAfterExpired()">
+			🆕 Rozpocznij nowy pomiar
+		</button>
+	</div>
+</div>
+</section>
+
+<section id="yes-no-screen">
+    <header>
+        <h2 id="yes-no-screen-title">--</h2>
+        <p id="yes-no-screen-subtitle">--</p>
+    </header>
+    <footer class="sonda-grid">
+        <button id="yes-no-screen-yes-btn" class="btn btn-success">TAK</button>
+        <button id="yes-no-screen-no-btn" class="btn btn-fail">NIE</button>
+    </footer>
+</section>
+</main>
 </body>
 </html>
