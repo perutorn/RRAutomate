@@ -1,4 +1,4 @@
-/* Zmienne i Reset */
+    /* Zmienne i Reset */
     :root {
         --bg-color: #f0f2f5;
         --text-color: #333333;
@@ -12,6 +12,7 @@
         --chart-bg: rgba(255, 0, 0, 0.1);
         --btn-active-scale: 0.97;
         --success-color: #28a745;
+        --fail-color: #A7288A;
         
         --chart-warning-zone: rgba(255, 255, 0, 0.08);
 		--chart-success-zone: rgba(34, 197, 94, 0.15);
@@ -71,10 +72,7 @@
 
     section.active { display: flex; animation: fadeIn 0.2s ease-out; }
     
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
     section > header{ margin-bottom: 20px; border-bottom: 2px solid var(--border-color); padding-bottom: 10px; }
     
@@ -141,7 +139,9 @@
     .btn-outline-fail { background: transparent; border: 2px solid red; color: var(--primary-color); }
 
     .btn-success { background-color: var(--success-color); color: white; margin-top: 15px; }
-    .btn-back { width: auto; min-height: 40px; padding: 0 15px; font-size: 0.9rem; }
+    .btn-fail { background-color: var(--fail-color); color: white; margin-top: 15px; }
+
+    .btn-back { width: auto; padding: 0 15px; font-size: 0.9rem; }
     .btn-warning-leave{ border: 2px solid red; color: red;}
     .btn-continue { border: 2px solid green; color: green; }
     .btn.save-for-later { border 2px solid yellow; color: yellow; }
@@ -157,12 +157,9 @@
         color: white;
     }
 
-    /* Pomiary i Wskaźniki */
-    
-
     .status-bar {
         display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
+        grid-template-columns: 1fr 1fr 1fr 1fr;
         gap: 5px;
         background: #1a1a1a;
         padding: 4px;
@@ -176,29 +173,13 @@
     .ind-val { font-weight: bold; font-size: 0.9rem; }
 
     /* Klawiatura */
-    .keypad-holder {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 6px;
-        margin-top: auto;
-    }
-
-    .key-btn {
-        min-height: 50px !important;
-        margin: 0 !important;
-        font-size: 1.2rem;
-        border-radius: 8px;
-    }
-
+    .keypad-holder { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: auto; }
+    .key-btn { min-height: 50px !important; margin: 0 !important; font-size: 1.2rem; border-radius: 8px; }
     .key-clear { background: #444 !important; color: #ff4444 !important; border: none; }
     .key-enter { grid-column: span 2; }
 
     /* Inputy */
-    .input-container-rel {
-        position: relative;
-        width: 100%;
-        margin-bottom: 15px;
-    }
+    .input-container-rel { position: relative; width: 100%; margin-bottom: 15px; }
 
     .input-display {
         width: 100%;
@@ -248,15 +229,7 @@
 
     /* Historia */
     .history-container { margin: 5px 0 15px 0; }
-
-    .history-log-row {
-        display: flex;
-        gap: 8px;
-        overflow-x: auto;
-        padding: 5px 0;
-        scrollbar-width: none;
-    }
-
+    .history-log-row   { display: flex; gap: 8px; overflow-x: auto; padding: 5px 0; scrollbar-width: none; }
     .history-log-row::-webkit-scrollbar { display: none; }
 
     .history-item {
@@ -269,10 +242,7 @@
         animation: slideIn 0.2s ease-out;
     }
 
-    @keyframes slideIn {
-        from { opacity: 0; transform: scale(0.8); }
-        to { opacity: 1; transform: scale(1); }
-    }
+    @keyframes slideIn { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); }}
     
     /* Kontener grupujący dolny panel sterowania */
 .control-panel {
@@ -302,16 +272,8 @@
     align-items: center;
 }
 
-/* Dopasowanie marginesów inputu i klawiatury wewnątrz panelu */
-.input-container-rel {
-    margin-bottom: 8px;
-}
-
-.keypad-holder {
-    margin-top: 0;
-    padding-bottom: 5px;
-}
-
+.input-container-rel { margin-bottom: 8px; }
+.keypad-holder { margin-top: 0; padding-bottom: 5px; }
 .chart-and-indicators-area {
 	display: flex;
 	flex-direction: column;
@@ -337,7 +299,7 @@
         align-items: center;
     }
     
-    #chart_canva {
+    #chart_canva { 
         width: 100% !important;
         min-height: 100px !important;
         max-height: 100%;
@@ -348,63 +310,28 @@
     }
     
     
-    /* Zauważ: dodałem px do 350px, bez tego media query może nie zadziałać */
 @media (max-height: 700px) {
 	
-    .status-bar {
-        padding: 2px; /* Mniejszy margines wewnętrzny całego paska */
-        gap: 3px;     /* Mniejsze odstępy między wskaźnikami */
-    }
+    .status-bar { padding: 2px; gap: 3px; }
 
-     .indicator {
-        padding-left: 5px; /* Węższy pasek boczny (ten kolorowy) */
-    }
+     .indicator { padding-left: 5px; }
 
-     .ind-label {
-        font-size: 0.6rem; /* Jeszcze mniejszy napis pomocniczy */
-        line-height: 1;    /* Ściśnięcie linii tekstu */
-    }
+     .ind-label { font-size: 0.6rem; line-height: 1; }
 
-     .ind-val {
-        font-size: 0.75rem; /* Zmniejszenie samej wartości (np. Cg) */
-    }
+     .ind-val { font-size: 0.75rem; }
 
-    /* Opcjonalnie: jeśli masz tam nagłówek sekcji, też go skompresuj */
-    .header-compact {
-        margin-bottom: 5px;
-        padding-bottom: 4px;
-    }
+    .header-compact { margin-bottom: 5px; padding-bottom: 4px; }
     
-    .title-mini {
-        font-size: 0.9rem !important;
-    }
+    .title-mini { font-size: 0.9rem !important; }
     
-    .key-btn {
-		min-height: 40px !important;
-	}
+    .key-btn { min-height: 40px !important; }
 }
 
-.measurements-ind {
-	justify-content: center;
-	background-color: transparent;
-	border: none;
-}
+.measurements-ind { justify-content: center; background-color: transparent;	border: none; }
+.measurements-ind-failed { border: 1px solid red; color: white; background-color: red; }
+.measurements-ind-positive { border: 1px solid green; color: white; background-color:green; }
 
-.measurements-ind-failed {
-	border: 1px solid red;
-	color: white;
-	background-color: red;
-}
-
-.measurements-ind-positive {
-	border: 1px solid green;
-	color: white;
-	background-color:green;
-}
-
-#report-host {
-	margin: auto;
-}
+#report-host { margin: auto; }
 
 /* --- Siatka i karty wyboru (Mobile-First) --- */
 .sonda-grid {
@@ -426,19 +353,9 @@
     gap: 5px;
 }
 
-.sonda-id {
-    font-size: 1.2rem;
-    font-weight: bold;
-    color: var(--text-color);
-}
+.sonda-id { font-size: 1.2rem; font-weight: bold; color: var(--text-color);}
 
-.sonda-desc {
-    font-size: 0.7rem;
-    color: var(--text-muted);
-    text-align: center;
-    line-height: 1.2;
-}
-
+.sonda-desc { font-size: 0.7rem; color: var(--text-muted); text-align: center; line-height: 1.2; }
 
 .report-header-btn {
 	display: flex;
@@ -455,3 +372,6 @@
     border-radius: 8px;
     margin-top: 10px;
 }
+
+.text-success { color: var(--success-color);}
+.text-danger { color: var(--fail-color); }
