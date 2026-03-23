@@ -1,53 +1,80 @@
+
     /* Zmienne i Reset */
     :root {
         --bg-color: #f0f2f5;
         --text-color: #333333;
         --text-muted: #666666;
-        --border-color: #dddddd;
+        --border-color: #dddddd; 
         --primary-color: #007bff;
-        --primary-text: #ffffff;
-        --secondary-color: #6c757d;
+
+        --secondary-color: #6c757d; 
         --secondary-text: #ffffff;
-        --card-bg: #ffffff;
+        --card-bg: #ffffff; 
         --chart-bg: rgba(255, 0, 0, 0.1);
         --btn-active-scale: 0.97;
         --success-color: #28a745;
         --fail-color: #A7288A;
+        --primary-text: #ffffff;
         
-        --chart-warning-zone: rgba(255, 255, 0, 0.08);
-		--chart-success-zone: rgba(34, 197, 94, 0.15);
-		--chart-line-error: #ef4444;
-		--chart-line-success: #22c55e;
-		--chart-line-path: rgba(56, 189, 248, 0.4);
-		--chart-point-normal: #ffffff;
-		--chart-point-warning: #eab308;
-		--chart-point-error: #ef4444;
-		--chart-text: #94a3b8;
-		--chart-point-border: #000000;
-    }
+		 --chart-bg: #ffffff;
 
-    @media (prefers-color-scheme: dark) {
-        :root {
-            --bg-color: #121212;
-            --text-color: #e0e0e0;
-            --text-muted: #aaaaaa;
-            --border-color: #333333;
-            --primary-color: #3f9eff;
-            --primary-text: #ffffff;
-            --secondary-color: #495057;
-            --secondary-text: #e0e0e0;
-            --card-bg: #1e1e1e;
-            --chart-bg: rgba(255, 80, 80, 0.15);
-            
-            --chart-warning-zone: rgba(234, 179, 8, 0.12);
-			--chart-success-zone: rgba(34, 197, 94, 0.2);
-			--chart-text: #64748b;
-			--chart-point-normal: #1e1e1e;
-			--chart-point-border: #ffffff;
-        }
+		/* STREFY – prawie niewidoczne */
+		--chart-warning-zone: rgba(0, 0, 0, 0.06);
+		--chart-success-zone: rgba(0, 0, 0, 0.1);
+
+		/* LINIE – wyraźne */
+		--chart-line-error: #d00000;     /* mocny czerwony */
+		--chart-line-success: #008000;   /* klasyczny zielony */
+		--chart-line-path: #000000;      /* CZARNA linia trendu */
+
+		/* PUNKTY – najważniejsze */
+		--chart-point-normal: #000000;
+		--chart-point-warning: #ff8c00;
+		--chart-point-error: #d00000;
+
+		--chart-point-border: #ffffff;
+		--chart-text: #000000;
+	}
+
+
+		
+		@media (prefers-color-scheme: dark) {
+    :root {
+        --bg-color: #0f172a;         /* slate-900 */
+        --text-color: #e5e7eb;
+        --text-muted: #9ca3af;
+        --border-color: #1f2937;
+        --card-bg: #111827;
+
+        --primary-color: #3b82f6;
+        --secondary-color: #374151;
+
+       --chart-bg: #000000;
+
+        /* STREFY – minimalne */
+        --chart-warning-zone: rgba(255, 255, 255, 0.05);
+        --chart-success-zone: rgba(255, 255, 255, 0.08);
+
+        /* LINIE */
+        --chart-line-error: #ff3b3b;
+        --chart-line-success: #00ff88;
+        --chart-line-path: #ffffff;
+
+        /* PUNKTY */
+        --chart-point-normal: #ffffff;
+        --chart-point-warning: #ffcc00;
+        --chart-point-error: #ff3b3b;
+
+        --chart-point-border: #000000;
+        --chart-text: #ffffff;
     }
+    
+    #chart_canva { border: 1px solid white;}
+
+}
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+    
 
     body { 
         background-color: var(--bg-color); 
@@ -132,7 +159,7 @@
         flex-shrink: 0;
     }
 
-    .btn-primary { background-color: var(--primary-color); color: var(--primary-text); }
+   /* .btn-primary { background-color: var(--primary-color); color: var(--primary-text); }
     .btn-secondary { background-color: var(--secondary-color); color: var(--secondary-text); }
     .btn-outline { background: transparent; border: 2px solid var(--primary-color); color: var(--primary-color); }
     .btn-outline-success { background: transparent; border: 2px solid var(--success-color); color: var(--primary-color); }
@@ -145,7 +172,28 @@
     .btn-warning-leave{ border: 2px solid red; color: red;}
     .btn-continue { border: 2px solid green; color: green; }
     .btn.save-for-later { border 2px solid yellow; color: yellow; }
-    .btn:active { transform: scale(var(--btn-active-scale)); opacity: 0.9; }
+    .btn:active { transform: scale(var(--btn-active-scale)); opacity: 0.9; } */
+    
+    /* Główne warianty tła */
+.btn-primary { background-color: var(--primary-color); color: var(--primary-text); }
+.btn-secondary { background-color: var(--secondary-color); color: var(--secondary-text); }
+.btn-success { background-color: var(--success-color); color: #ffffff; margin-top: 15px; }
+.btn-fail { background-color: var(--fail-color); color: #ffffff; margin-top: 15px; }
+
+/* Uniwersalna klasa dla przycisków z samym obramowaniem */
+.btn-outline { 
+    background: transparent; 
+    border: 2px solid var(--btn-color, var(--primary-color)); 
+    color: var(--btn-color, var(--primary-color)); 
+}
+
+/* Modyfikatory kolorów dla btn-outline */
+.btn-outline.success { --btn-color: var(--success-color); }
+.btn-outline.fail    { --btn-color: var(--fail-color); }
+.btn-outline.warning { --btn-color: #ffcc00; }
+
+/* Inne modyfikatory */
+.btn-back { width: auto; padding: 0 15px; font-size: 0.9rem; }
 
     .qr-placeholder {
         flex: 1;
@@ -158,15 +206,22 @@
     }
 
     .status-bar {
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr 1fr;
-        gap: 5px;
-        background: #1a1a1a;
-        padding: 4px;
-        border-radius: 8px;
-        color: white;
-    }
+    display: grid;
+    grid-template-columns: repeat(3, 1fr); /* Zmiana z 4 na 3 kolumny */
+    gap: 6px;
+    background: #1a1a1a;
+    padding: 6px;
+    border-radius: 8px;
+    color: white;
+    margin-bottom: 5px;
+}
 
+/* Kolorowanie krawędzi wskaźników zależnie od statusu */
+.indicator.status-pass { border-left-color: var(--success-color, #00ff88); }
+.indicator.status-fail { border-left-color: var(--fail-color, #ff3b3b); }
+
+/* Możesz usunąć te klasy, bo nie będą już potrzebne: */
+/* .measurement-info-box, .measurements-ind, .measurements-ind-failed, .measurements-ind-positive */
     .indicator { border-left: 3px solid #444; padding-left: 8px; }
     .indicator.critical { border-left-color: #ff4444; }
     .ind-label { font-size: 0.7rem; color: #aaa; display: block; text-transform: uppercase; }
@@ -210,37 +265,29 @@
         justify-content: center;
     }
 
-    select {
-        width: 100%;
-        height: 55px;
-        font-size: 1.1rem;
-        margin: 15px 0;
-        border-radius: 8px;
-        padding: 0 10px;
-        background-color: var(--card-bg);
-        color: var(--text-color);
-        border: 1px solid var(--border-color);
-    }
-
+   
+	main { max-width: 1000px; margin: auto;}
 
     .hidden { display: none !important; }
     .text-primary { color: var(--primary-color); font-weight: bold; }
     .text-muted-sm { font-size: 0.7rem; color: var(--text-muted); display: block; }
 
     /* Historia */
-    .history-container { margin: 5px 0 15px 0; }
-    .history-log-row   { display: flex; gap: 8px; overflow-x: auto; padding: 5px 0; scrollbar-width: none; }
+    
+    .history-container { margin: 2px 0 2px 0; }
+    .history-log-row   { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0; scrollbar-width: none; }
     .history-log-row::-webkit-scrollbar { display: none; }
 
     .history-item {
         background: var(--secondary-color);
         color: var(--secondary-text);
-        padding: 4px 12px;
-        border-radius: 15px;
-        font-size: 0.9rem;
+        padding: 4px 4px;
+        border-radius: 5px;
+        font-size: 0.75rem;
         white-space: nowrap;
         animation: slideIn 0.2s ease-out;
     }
+    
 
     @keyframes slideIn { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); }}
     
@@ -254,23 +301,6 @@
     border-top: 1px solid var(--border-color);
 }
 
-/* Stała wysokość logu historii, by uniknąć przeskakiwania layoutu */
-.history-container {
-    margin: 0;
-    height: 52px; /* Stała wysokość: label + log-row */
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-}
-
-.history-log-row {
-    display: flex;
-    gap: 8px;
-    overflow-x: auto;
-    min-height: 32px; /* Rezerwacja miejsca na same "pigułki" z wynikami */
-    padding: 2px 0;
-    align-items: center;
-}
 
 .input-container-rel { margin-bottom: 8px; }
 .keypad-holder { margin-top: 0; padding-bottom: 5px; }
@@ -284,22 +314,13 @@
 
 #measurement-screen {
 	overflow: hidden;
+	max-width: 1000px;
+	margin: auto;
 }
 
-.measurement-info-box {
-        margin-bottom: 15px;
-        background: var(--card-bg);
-        padding: 5px 10px;
-        border-radius: 4px;
-        border: 1px solid var(--border-color);
-        color: var(--text-color);
-        font-size: 0.7rem;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
+
     
-    #chart_canva { 
+    /* #chart_canva { 
         width: 100% !important;
         min-height: 100px !important;
         max-height: 100%;
@@ -307,7 +328,19 @@
         background-color: var(--chart-bg);
         border-radius: 8px;
         flex-grow: 1;
-    }
+        border: 1px solid var(--border-color);
+    } */
+    
+    #chart_canva { 
+    width: 100%;
+    min-height: 100px;
+    height: 100%; /* Pozwala elementowi rosnąć w kontenerze flex */
+    margin: 5px 0;
+    background-color: var(--chart-bg);
+    border-radius: 8px;
+    flex-grow: 1;
+    border: 1px solid black;
+}
     
     
 @media (max-height: 700px) {
@@ -326,10 +359,6 @@
     
     .key-btn { min-height: 40px !important; }
 }
-
-.measurements-ind { justify-content: center; background-color: transparent;	border: none; }
-.measurements-ind-failed { border: 1px solid red; color: white; background-color: red; }
-.measurements-ind-positive { border: 1px solid green; color: white; background-color:green; }
 
 #report-host { margin: auto; }
 
@@ -375,3 +404,90 @@
 
 .text-success { color: var(--success-color);}
 .text-danger { color: var(--fail-color); }
+
+/* --- Stylizacja pola wyszukiwania --- */
+.search-input {
+    width: 100%;
+    padding: 14px 16px;
+    font-size: 1.1rem;
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    background-color: var(--card-bg);
+    color: var(--text-color);
+    margin-bottom: 20px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    outline: none;
+    -webkit-appearance: none; /* Zapobiega domyślnemu stylowaniu na iOS */
+}
+
+.search-input::placeholder {
+    color: var(--text-muted);
+}
+
+.search-input:focus {
+    border-color: var(--primary-color);
+    /* Delikatna poświata w kolorze primary dla lepszej widoczności */
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.2); 
+}
+
+/* Aktualizacja dla Dark Mode (dodaj wewnątrz @media (prefers-color-scheme: dark)) */
+@media (prefers-color-scheme: dark) {
+    .search-input:focus {
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+    }
+}
+
+.status-bar.compact {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0; /* Brak odstępów między sekcjami dla spójności */
+    background: #1a1a1a;
+    padding: 4px 8px;
+    border-radius: 6px;
+    align-items: center;
+}
+
+.status-bar.compact .indicator {
+    padding: 2px 8px;
+    border-left: 3px solid #444; /* Domyślny kolor */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.status-bar.compact .indicator.no-border {
+    border-left: none;
+}
+
+/* Główne wartości (Cg, Cgk, AVG) */
+.ind-main {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+}
+
+.status-bar.compact .ind-label {
+    font-size: 0.65rem;
+    color: #aaa;
+    text-transform: uppercase;
+    font-weight: bold;
+}
+
+.status-bar.compact .ind-val {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #fff;
+    font-family: monospace;
+}
+
+/* Mniejsze wartości pod spodem (MAX, BIAS) */
+.ind-sub {
+    font-size: 0.6rem;
+    color: #888;
+    margin-top: -2px;
+    text-align: right;
+}
+
+/* Statusy kolorystyczne */
+.indicator.status-pass { border-left-color: var(--success-color); }
+.indicator.status-fail { border-left-color: var(--fail-color); }
