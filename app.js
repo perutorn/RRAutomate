@@ -11,7 +11,6 @@ if ('serviceWorker' in navigator) {
             .catch(err => console.error('Błąd SW:', err));
     });
 }
-
 const LOCALSTORAGE_KEY = 'randr-session';
 const SESSION_TIMEOUT = 86400; //(sek.)
 
@@ -532,11 +531,10 @@ function updateStats() {
 	const stats = calculateStats(measurements, m, t);
 	const ideal = calculateStats(idealMeasurements, m, t);
 
-	updateMainIndicators(stats, f);
-	updateMaxIndicators(ideal, n);
+	updateMeasurementUI(stats,ideal, f);
 
 	// 4. Sterowanie interfejsem (Używamy klas, nie styli inline)
-	const isFinished = n >= 5;
+	const isFinished = n >= session.testLength;
 	document.getElementById('input-container').classList.toggle('hidden', isFinished);
 	document.getElementById('keypad').classList.toggle('hidden', isFinished);
 	document.getElementById('btn-final').classList.toggle('hidden', !isFinished);
@@ -564,11 +562,13 @@ function renderHistoryLog(measurements, master, tolerance, precision) {
         const newMeasurements = measurements.slice(currentCount);
         const fragment = document.createDocumentFragment();
         
+        let counter = 1;
         newMeasurements.forEach(v => {
             const diff = Math.abs(v - master);
             const item = document.createElement('div');
             item.className = 'history-item';
-            item.textContent = v.toFixed(precision);
+            item.textContent = `${counter}: ${v.toFixed(precision)}`;
+            counter++;
 
             if (diff > tolerance / 2) item.classList.add('text-danger');
             else if (diff > (tolerance * 0.1)) item.classList.add('text-warning');
@@ -592,71 +592,68 @@ function renderHistoryLog(measurements, master, tolerance, precision) {
     }
 }
 
-function updateMainIndicators(stats, precision) {
+function updateMeasurementUI(stats, ideal, precision = 3) {
+    // 1. Mapowanie elementów (zapobiega wielokrotnemu szukaniu w DOM)
     const elements = {
-        avg: document.getElementById('val-avg'),
         cg: document.getElementById('val-cg'),
+        maxCg: document.getElementById('val-max-cg'),
         cgk: document.getElementById('val-cgk'),
+        maxCgk: document.getElementById('val-max-cgk'),
+        avg: document.getElementById('val-avg'),
+        bias: document.getElementById('val-bias'),
         indCg: document.getElementById('ind-cg'),
-        indCgk: document.getElementById('ind-cgk'),
-        bias: document.getElementById('val-bias')
+        indCgk: document.getElementById('ind-cgk')
     };
 
+    // Helper do formatowania: obsługa null (jako nieskończoność) i undefined
+    const fmt = (val, p) => {
+        if (val === null) return "∞";
+        if (typeof val !== 'number') return "--";
+        return val.toFixed(p);
+    };
+
+    // 2. Obsługa braku danych (reset interfejsu)
     if (!stats) {
-        ['avg', 'cg', 'cgk'].forEach(key => elements[key].textContent = "--");
+        Object.values(elements).forEach(el => {
+            if (el && el.tagName === 'SPAN') el.textContent = "--";
+            if (el && el.classList.contains('indicator')) {
+                el.classList.remove('status-pass', 'status-fail');
+            }
+        });
         return;
     }
 
-    elements.avg.textContent = stats.avg.toFixed(precision);
+    // 3. Aktualizacja wartości tekstowych
+    elements.cg.textContent = fmt(stats.cg, 2);
+    elements.maxCg.textContent = fmt(ideal?.cg, 2);
     
-    // Obsługa Twojego nowego "null" z calculateStats
-    elements.cg.textContent = stats.cg === null ? "∞" : stats.cg.toFixed(2);
-    elements.cgk.textContent = stats.cgk === null ? "∞" : stats.cgk.toFixed(2);
+    elements.cgk.textContent = fmt(stats.cgk, 2);
+    elements.maxCgk.textContent = fmt(ideal?.cgk, 2);
     
-    const bias = stats.avg - session.masterParams.master;
-    elements.bias.textContent = bias.toFixed(precision);
+    elements.avg.textContent = fmt(stats.avg, precision);
     
-    const tol = session.masterParams.rf * 0.1;
+    // Obliczenie i formatowanie Bias
+    const biasVal = stats.avg - session.masterParams.master;
+    elements.bias.textContent = fmt(biasVal, precision);
 
-	elements.bias.classList.toggle('text-success', Math.abs(bias) < tol);
-	elements.bias.classList.toggle('text-warning', Math.abs(bias) >= tol && Math.abs(bias) < tol * 2);
-	elements.bias.classList.toggle('text-danger', Math.abs(bias) >= tol * 2);
-
-    // Zamiast borderLeftColor - dodajemy klasę stanu
+    // 4. Logika kolorowania wskaźników statusu (lewa krawędź)
     if (stats.cg !== null) {
         elements.indCg.classList.toggle('status-pass', stats.cg >= 1.33);
         elements.indCg.classList.toggle('status-fail', stats.cg < 1.33);
     }
+    
     if (stats.cgk !== null) {
         elements.indCgk.classList.toggle('status-pass', stats.cgk >= 1.33);
         elements.indCgk.classList.toggle('status-fail', stats.cgk < 1.33);
     }
-}
 
-function updateMaxIndicators(ideal, n) {
-    const mInfo = document.getElementById('measurement-info');
-    if (!mInfo) return;
-
-    if (!ideal || n < 2) {
-        mInfo.textContent = 'Oczekiwanie na dane...';
-        mInfo.className = 'measurements-ind-status';
-        return;
-    }
-
-    mInfo.textContent = ''; // Czyścimy pod bezpieczne append
+    // 5. Specyficzne kolorowanie tekstu BIAS (opcjonalne, zależne od tolerancji)
+    const tol = session.masterParams.rf * 0.1;
+    const absBias = Math.abs(biasVal);
     
-    const cgVal = ideal.cg === null ? "∞" : ideal.cg.toFixed(2);
-    const cgkVal = ideal.cgk === null ? "∞" : ideal.cgk.toFixed(2);
-
-    const divCg = document.createElement('div');
-    divCg.className = `measurements-ind ${ideal.cg >= 1.33 ? 'positive' : 'failed'}`;
-    divCg.textContent = `Max Cg: ${cgVal}`;
-
-    const divCgk = document.createElement('div');
-    divCgk.className = `measurements-ind ${ideal.cgk >= 1.33 ? 'positive' : 'failed'}`;
-    divCgk.textContent = `Max Cgk: ${cgkVal}`;
-
-    mInfo.append(divCg, divCgk);
+    elements.bias.classList.toggle('text-success', absBias < tol);
+    elements.bias.classList.toggle('text-warning', absBias >= tol && absBias < tol * 2);
+    elements.bias.classList.toggle('text-danger', absBias >= tol * 2);
 }
 	
 function getChartTheme() {
@@ -680,6 +677,7 @@ function drawChart(maxChartSteps = 50, canvasId = 'chart_canva') {
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
+    //ctx.globalAlpha = 0.6;
     const theme = getChartTheme();
     
     // Optymalizacja: ustawiamy wymiary tylko gdy faktycznie się zmieniły
@@ -712,27 +710,12 @@ function drawChart(maxChartSteps = 50, canvasId = 'chart_canva') {
     const greenZoneT = t * 0.1;
 
     // --- 1. STREFY TŁA (Zgrupowane wypełnienia) ---
-    const yMaxT = yScale(m + t/2);
+   const yMaxT = yScale(m + t/2);
     const yMinT = yScale(m - t/2);
     const yMaster = yScale(m);
 
-    // --- STREFA TOLERANCJI Z GRADIENTEM ---
-
-// 1. Gradient górny: od górnej granicy tolerancji (yMaxT) do linii Master (yMaster)
-const gradTop = ctx.createLinearGradient(0, yMaxT, 0, yMaster);
-gradTop.addColorStop(0, theme.warningZone);      // Kolor przy krawędzi (np. czerwony/pomarańczowy)
-gradTop.addColorStop(1, 'rgba(0, 0, 0, 0)');     // Pełne wygaszenie do przezroczystości na środku
-
-ctx.fillStyle = gradTop;
-ctx.fillRect(0, yMaxT, w, yMaster - yMaxT);
-
-// 2. Gradient dolny: od linii Master (yMaster) do dolnej granicy tolerancji (yMinT)
-const gradBottom = ctx.createLinearGradient(0, yMaster, 0, yMinT);
-gradBottom.addColorStop(0, 'rgba(0, 0, 0, 0)');  // Start od przezroczystości na środku
-gradBottom.addColorStop(1, theme.warningZone);   // Powrót do koloru przy dolnej krawędzi
-
-ctx.fillStyle = gradBottom;
-ctx.fillRect(0, yMaster, w, yMinT - yMaster);
+    ctx.fillStyle = theme.warningZone;
+    ctx.fillRect(0, yMaxT, w, yMinT - yMaxT);
 
     const yGreenHigh = yScale(m + greenZoneT);
     const yGreenLow = yScale(m - greenZoneT);
@@ -1441,3 +1424,4 @@ window.addEventListener('keydown', (event) => {
 		undoLast();
 	}
 });
+
