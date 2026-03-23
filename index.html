@@ -17,7 +17,6 @@
 <main>
 <section id="machine-select-screen" class="active">
     <header><h2>Krok 1: Wybór Maszyny</h2></header>
-    <p class="centered-label">Wybierz maszynę z listy:</p>
     <input id="machine-select-input" class="search-input" placeholder="Wyszukaj maszynę...">
     <div id="machine-buttons-container" class="sonda-grid">
 		<div id="machine-select-empty-result" class="empty-result-msg hidden">brak wyników...</div>
@@ -57,6 +56,7 @@
 	<footer class="sonda-grid">
 		<button class="btn btn-outline sonda-btn" onclick="handleTestLengthChoice(30)">SKRÓCONY - 30 pomiarów</button>
 		<button class="btn btn-outline sonda-btn" onclick="handleTestLengthChoice(50)">PEŁNY - 50 pomiarów</button>
+		<button class="btn btn-outline sonda-btn" onclick="handleTestLengthChoice(5)">TESTY - 5 pomiarów</button>
 	</footer>
 </section>
 
@@ -72,33 +72,39 @@
 		</div>
 	</header>
 
-	<div class="status-bar">
-		<div id="ind-cg" class="indicator critical"> 
-			<span class="ind-label">C<sub>G</sub> (4σ)</span>
-			<span id="val-cg" class="ind-val">--</span>
-		</div>
-		<div id="ind-cgk" class="indicator critical">
-			<span class="ind-label">C<sub>GK</sub></span>
-			<span id="val-cgk" class="ind-val">--</span>
-		</div>
-		<div class="indicator">
-			<span class="ind-label">ŚREDNIA</span>
-			<span id="val-avg" class="ind-val">--</span>
-		</div>
-		<div class="indicator">
-			<span class="ind-label">BIAS</span>
-			<span id="val-bias" class="ind-val">--</span>
-		</div>
-	</div>
-	
-	<div class="chart-and-indicators-area">
-		<canvas id="chart_canva"></canvas>
-		<div id="measurement-info" class="measurement-info-box"></div>
-	</div>
+<div class="status-bar compact">
+    <div id="ind-cg" class="indicator">
+        <div class="ind-main">
+            <span class="ind-label">C<sub>G</sub></span>
+            <span id="val-cg" class="ind-val">--</span>
+        </div>
+        <div class="ind-sub">MAX: <span id="val-max-cg">--</span></div>
+    </div>
+
+    <div id="ind-cgk" class="indicator">
+        <div class="ind-main">
+            <span class="ind-label">C<sub>GK</sub></span>
+            <span id="val-cgk" class="ind-val">--</span>
+        </div>
+        <div class="ind-sub">MAX: <span id="val-max-cgk">--</span></div>
+    </div>
+
+    <div class="indicator no-border">
+        <div class="ind-main">
+            <span class="ind-label">AVG</span>
+            <span id="val-avg" class="ind-val">--</span>
+        </div>
+        <div class="ind-sub">BIAS: <span id="val-bias">--</span></div>
+    </div>
+</div>
+
+<div class="chart-and-indicators-area">
+    <canvas id="chart_canva"></canvas>
+    </div>
 	
 	<div class="control-panel">
 		<div class="history-container">
-			<span class="text-muted-sm">Ostatnie odczyty:</span>
+			
 			<div id="history-log" class="history-log-row">
 				</div>
 		</div>
